@@ -1,0 +1,76 @@
+        /* Custom color scheme */
+        :root {
+            --primary-color: #800000;
+            --secondary-color: #089000;
+            --accent-color: #f7a306;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        /* Sidebar */
+        .sidebar {
+            background-color: var(--primary-color);
+            min-height: 100vh;
+            width: 17%;
+            color: white;
+            position: static;
+            margin-right: 2vh;        
+        }
+
+        .sidebar h2 {
+            padding: 20px;
+            font-weight: bold;
+        }
+
+        .sidebar a {
+            color: white;
+            padding: 10px 20px;
+            display: block;
+            text-decoration: none;
+        }
+
+        .sidebar a:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        /* Main Content */
+        .content {
+            padding: 20px;
+        }
+
+        .content h1 {
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* Cards */
+        .card {
+            border: 1px solid var(--secondary-color);
+            margin-top:6vh;
+        }
+
+        .card-header {
+            background-color: var(--secondary-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        /* Button Styling */
+        .btn-primary {
+            background-color: var(--primary-color);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        .header{
+            position:relative
+        }
+
+        
