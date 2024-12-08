@@ -7,127 +7,109 @@ error_reporting(E_ALL);
 include('accesscontrol.php'); // Validate user access
 include('backend/db.php');    // Include database connection
 
-// Validate session parameters
-if (!isset($_SESSION['department_id']) || !isset($_SESSION['timeline']['id'])) {
-    http_response_code(400);
-    die(json_encode(['error' => 'Required parameters are missing.']));
-}
+// Function to fetch budget data (events and assets)
+function getBudgetData($mysqli, $department_id) {
+    $response = [
+        'events' => [],
+        'assets' => [],
+    ];
 
-// Extract session variables
-$department_id = (int)$_SESSION['department_id'];
-$timeline_id = (int)$_SESSION['timeline']['id'];
+    try {
+        // **Events Query**
+        $events_query = "
+            SELECT 
+                e.id AS event_id, e.event_name, e.attendees, 
+                ei.id AS item_id, ei.item_name, ei.quantity, ei.cost_per_item, ei.total_cost
+            FROM 
+                events e
+            LEFT JOIN 
+                event_items ei ON e.id = ei.event_id
+            LEFT JOIN 
+                budgets b ON e.budget_id = b.id
+            WHERE 
+                b.department_id = ?
+            ORDER BY 
+                e.id";
+        $events_stmt = $mysqli->prepare($events_query);
+        $events_stmt->bind_param("i", $department_id);
+        $events_stmt->execute();
+        $events_stmt->bind_result(
+            $event_id, $event_name, $attendees,
+            $item_id, $item_name, $quantity, $cost_per_item, $total_cost
+        );
 
-// Initialize response data
-$response = [
-    'events' => [],
-    'assets' => [],
-];
-
-try {
-    // **Events Query**
-    $events_query = "
-        SELECT 
-            e.id AS event_id, e.event_name, e.attendees, 
-            ei.id AS item_id, ei.item_name, ei.quantity, ei.cost_per_item, ei.total_cost
-        FROM 
-            events e
-        LEFT JOIN 
-            event_items ei ON e.id = ei.event_id
-        LEFT JOIN 
-            budgets b ON e.budget_id = b.id
-        WHERE 
-            b.department_id = ?
-        ORDER BY 
-            e.id";
-    
-    $events_stmt = $mysqli->prepare($events_query);
-    if (!$events_stmt) {
-        throw new Exception("Failed to prepare events query: " . $mysqli->error);
-    }
-
-    $events_stmt->bind_param("i", $department_id);
-    $events_stmt->execute();
-
-    // Bind result columns
-    $events_stmt->bind_result(
-        $event_id, $event_name, $attendees,
-        $item_id, $item_name, $quantity, $cost_per_item, $total_cost
-    );
-
-    // Process rows
-    $events = [];
-    while ($events_stmt->fetch()) {
-        if (!isset($events[$event_id])) {
-            $events[$event_id] = [
-                'event_name' => $event_name,
-                'attendees' => $attendees,
-                'items' => [],
-            ];
+        $events = [];
+        while ($events_stmt->fetch()) {
+            if (!isset($events[$event_id])) {
+                $events[$event_id] = [
+                    'event_name' => $event_name,
+                    'attendees' => $attendees,
+                    'items' => [],
+                ];
+            }
+            if ($item_id) {
+                $events[$event_id]['items'][] = [
+                    'item_id' => $item_id,
+                    'item_name' => $item_name,
+                    'quantity' => $quantity,
+                    'cost_per_item' => $cost_per_item,
+                    'total_cost' => $total_cost,
+                ];
+            }
         }
-        if ($item_id) {
-            $events[$event_id]['items'][] = [
-                'item_id' => $item_id,
+        $response['events'] = $events;
+        $events_stmt->close();
+
+        // **Assets Query**
+        $assets_query = "
+            SELECT 
+                a.id AS asset_id, a.item_name, a.quantity, a.cost_per_item, a.total_cost
+            FROM 
+                assets a
+            LEFT JOIN 
+                budgets b ON a.budget_id = b.id
+            WHERE 
+                b.department_id = ?";
+        $assets_stmt = $mysqli->prepare($assets_query);
+        $assets_stmt->bind_param("i", $department_id);
+        $assets_stmt->execute();
+        $assets_stmt->bind_result($asset_id, $item_name, $quantity, $cost_per_item, $total_cost);
+
+        $assets = [];
+        while ($assets_stmt->fetch()) {
+            $assets[] = [
+                'asset_id' => $asset_id,
                 'item_name' => $item_name,
                 'quantity' => $quantity,
                 'cost_per_item' => $cost_per_item,
                 'total_cost' => $total_cost,
             ];
         }
-    }
-    $response['events'] = $events;
+        $response['assets'] = $assets;
+        $assets_stmt->close();
 
-    $events_stmt->close();
-
-    // **Assets Query**
-    $assets_query = "
-        SELECT 
-            a.id AS asset_id, a.item_name, a.quantity, a.cost_per_item, a.total_cost
-        FROM 
-            assets a
-        LEFT JOIN 
-            budgets b ON a.budget_id = b.id
-        WHERE 
-            b.department_id = ?";
-    
-    $assets_stmt = $mysqli->prepare($assets_query);
-    if (!$assets_stmt) {
-        throw new Exception("Failed to prepare assets query: " . $mysqli->error);
+    } catch (Exception $e) {
+        error_log("Error fetching budget data: " . $e->getMessage());
     }
 
-    $assets_stmt->bind_param("i", $department_id);
-    $assets_stmt->execute();
-
-    // Bind result columns for assets
-    $assets_stmt->bind_result($asset_id, $item_name, $quantity, $cost_per_item, $total_cost);
-
-    $assets = [];
-    while ($assets_stmt->fetch()) {
-        $assets[] = [
-            'asset_id' => $asset_id,
-            'item_name' => $item_name,
-            'quantity' => $quantity,
-            'cost_per_item' => $cost_per_item,
-            'total_cost' => $total_cost,
-        ];
-    }
-    $response['assets'] = $assets;
-
-    $assets_stmt->close();
-
-    // Return response data as JSON
-    header('Content-Type: application/json');
-    echo json_encode($response);
-} catch (Exception $e) {
-    // Handle exceptions
-    http_response_code(500);
-    error_log("Error: " . $e->getMessage());
-    echo json_encode(['error' => $e->getMessage()]);
+    return $response;
 }
 
-// Close database connection
-$mysqli->close();
-?>
+// If JSON data is requested
+if (isset($_GET['fetch']) && $_GET['fetch'] === 'true') {
+    if (!isset($_SESSION['department_id']) || !isset($_SESSION['timeline']['id'])) {
+        http_response_code(400);
+        die(json_encode(['error' => 'Required parameters are missing.']));
+    }
 
+    $department_id = (int)$_SESSION['department_id'];
+    $response = getBudgetData($mysqli, $department_id);
+
+    header('Content-Type: application/json');
+    echo json_encode($response);
+    exit; // Prevent further output
+}
+?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -183,13 +165,6 @@ $mysqli->close();
             <tbody id="eventsTableBody">
                 <!-- Existing event rows will be populated here -->
             </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="7" class="text-center">
-                        <button class="btn btn-add-event" onclick="addEventRow()">+ Add Another Event</button>
-                    </td>
-                </tr>
-            </tfoot>
         </table>
     </div>
 
@@ -209,13 +184,6 @@ $mysqli->close();
             <tbody id="assetsTableBody">
                 <!-- Existing asset rows will be populated here -->
             </tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5" class="text-center">
-                        <button class="btn btn-add-asset" onclick="addAssetRow()">+ Add Another Asset</button>
-                    </td>
-                </tr>
-            </tfoot>
         </table>
     </div>
 
@@ -227,98 +195,89 @@ $mysqli->close();
 </div>
 
 <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 <script>
-    // Add Event Row
-    function addEventRow() {
-        const eventId = `event-${Date.now()}`;
-        const newRow = `
-            <tr class="event-header-row" data-event-id="${eventId}">
-                <td colspan="2">
-                    <input type="text" class="form-control event-name" placeholder="Event Name" required>
-                </td>
-                <td>
-                    <input type="number" class="form-control event-attendees" placeholder="Attendees" min="1" required>
-                </td>
-                <td colspan="3" class="text-right">
-                    <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
-                </td>
-            </tr>
-            <tr class="event-item-row" data-event-id="${eventId}">
-                <td colspan="2"></td>
-                <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
-                <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
-                <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-                <td><span class="item-total">0.00</span></td>
-                <td>
-                    <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-                </td>
-            </tr>
-            <tr class="event-subtotal-row" data-event-id="${eventId}">
-                <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
-                <td><span class="event-subtotal">0.00</span></td>
-                <td></td>
-            </tr>`;
-        $('#eventsTableBody').append(newRow);
+    $(document).ready(function () {
+        // Fetch and populate budget data on page load
+        fetchBudgetData();
+    });
+
+    function fetchBudgetData() {
+        $.ajax({
+            url: '?fetch=true',
+            method: 'GET',
+            dataType: 'json',
+            success: function (response) {
+                populateTables(response);
+            },
+            error: function (error) {
+                console.error('Error fetching budget data:', error);
+                alert('Failed to load budget data.');
+            }
+        });
     }
 
-    // Add Asset Row
-    function addAssetRow() {
-        const newRow = `
-            <tr class="asset-item-row">
-                <td><input type="text" class="form-control" placeholder="Item Name" required></td>
-                <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
-                <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-                <td><span class="asset-total">0.00</span></td>
-                <td>
-                    <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
-                </td>
-            </tr>`;
-        $('#assetsTableBody').append(newRow);
-        updateTotals();
-    }
+    function populateTables(data) {
+        const events = data.events || [];
+        const assets = data.assets || [];
 
-    // Update Event and Asset Subtotal
-    function updateTotals() {
-        let eventsSubtotal = 0;
-        $('#eventsTableBody').find('.event-header-row').each(function () {
-            const eventId = $(this).data('event-id');
-            let eventTotal = 0;
-            $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
-                const qty = parseFloat($(this).find('.item-quantity').val()) || 0;
-                const cost = parseFloat($(this).find('.item-cost').val()) || 0;
-                const total = qty * cost;
-                $(this).find('.item-total').text(total.toFixed(2));
-                eventTotal += total;
+        // Populate events table
+        const eventsTableBody = $('#eventsTableBody');
+        eventsTableBody.empty(); // Clear existing rows
+        events.forEach(event => {
+            event.items.forEach(item => {
+                const row = `
+                    <tr>
+                        <td>${event.event_name}</td>
+                        <td>${event.attendees}</td>
+                        <td>${item.item_name}</td>
+                        <td>${item.quantity}</td>
+                        <td>${item.cost_per_item.toFixed(2)}</td>
+                        <td>${item.total_cost.toFixed(2)}</td>
+                        <td><button class="btn btn-danger btn-sm">Delete</button></td>
+                    </tr>`;
+                eventsTableBody.append(row);
             });
-            $(`.event-subtotal-row[data-event-id="${eventId}"] .event-subtotal`).text(eventTotal.toFixed(2));
-            eventsSubtotal += eventTotal;
         });
 
-        let assetsSubtotal = 0;
-        $('#assetsTableBody .asset-item-row').each(function () {
-            const qty = parseFloat($(this).find('.asset-quantity').val()) || 0;
-            const cost = parseFloat($(this).find('.asset-cost').val()) || 0;
-            const total = qty * cost;
-            $(this).find('.asset-total').text(total.toFixed(2));
-            assetsSubtotal += total;
+        // Populate assets table
+        const assetsTableBody = $('#assetsTableBody');
+        assetsTableBody.empty(); // Clear existing rows
+        assets.forEach(asset => {
+            const row = `
+                <tr>
+                    <td>${asset.item_name}</td>
+                    <td>${asset.quantity}</td>
+                    <td>${asset.cost_per_item.toFixed(2)}</td>
+                    <td>${asset.total_cost.toFixed(2)}</td>
+                    <td><button class="btn btn-danger btn-sm">Delete</button></td>
+                </tr>`;
+            assetsTableBody.append(row);
         });
 
-        $('#grandTotal').text((eventsSubtotal + assetsSubtotal).toFixed(2));
+        updateGrandTotal(data);
     }
 
-    // Remove Row (Event Item or Asset)
-    function removeRow(button) {
-        $(button).closest('tr').remove();
-        updateTotals();
+    function updateGrandTotal(data) {
+        let total = 0;
+
+        // Calculate events total
+        Object.values(data.events).forEach(event => {
+            event.items.forEach(item => {
+                total += parseFloat(item.total_cost);
+            });
+        });
+
+        // Calculate assets total
+        data.assets.forEach(asset => {
+            total += parseFloat(asset.total_cost);
+        });
+
+        $('#grandTotal').text(total.toFixed(2));
     }
 
-    // Submit Budget
     function submitBudget() {
-        const grandTotal = $('#grandTotal').text();
-        alert('Budget submitted successfully! Grand Total: ' + grandTotal);
+        alert('Budget submitted successfully!');
     }
 </script>
 
