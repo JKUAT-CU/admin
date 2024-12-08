@@ -48,11 +48,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 exit();
             } else {
                 echo "<script>alert('Invalid email or password');</script>";
+                header("Location: ../login");
             }
 
             $stmt->close();
         } else {
             echo "<script>alert('Database error');</script>";
+            header("Location: ../login");
         }
     }
 }
