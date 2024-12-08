@@ -47,26 +47,30 @@ try {
 
     $events_stmt->bind_param("i", $department_id);
     $events_stmt->execute();
-    $events_result = $events_stmt->get_result();
 
-    // Group event data by event ID
+    // Bind result columns
+    $events_stmt->bind_result(
+        $event_id, $event_name, $attendees,
+        $item_id, $item_name, $quantity, $cost_per_item, $total_cost
+    );
+
+    // Process rows
     $events = [];
-    while ($row = $events_result->fetch_assoc()) {
-        $event_id = $row['event_id'];
+    while ($events_stmt->fetch()) {
         if (!isset($events[$event_id])) {
             $events[$event_id] = [
-                'event_name' => $row['event_name'],
-                'attendees' => $row['attendees'],
+                'event_name' => $event_name,
+                'attendees' => $attendees,
                 'items' => [],
             ];
         }
-        if ($row['item_id']) {
+        if ($item_id) {
             $events[$event_id]['items'][] = [
-                'item_id' => $row['item_id'],
-                'item_name' => $row['item_name'],
-                'quantity' => $row['quantity'],
-                'cost_per_item' => $row['cost_per_item'],
-                'total_cost' => $row['total_cost'],
+                'item_id' => $item_id,
+                'item_name' => $item_name,
+                'quantity' => $quantity,
+                'cost_per_item' => $cost_per_item,
+                'total_cost' => $total_cost,
             ];
         }
     }
@@ -92,9 +96,21 @@ try {
 
     $assets_stmt->bind_param("i", $department_id);
     $assets_stmt->execute();
-    $assets_result = $assets_stmt->get_result();
 
-    $response['assets'] = $assets_result->fetch_all(MYSQLI_ASSOC);
+    // Bind result columns for assets
+    $assets_stmt->bind_result($asset_id, $item_name, $quantity, $cost_per_item, $total_cost);
+
+    $assets = [];
+    while ($assets_stmt->fetch()) {
+        $assets[] = [
+            'asset_id' => $asset_id,
+            'item_name' => $item_name,
+            'quantity' => $quantity,
+            'cost_per_item' => $cost_per_item,
+            'total_cost' => $total_cost,
+        ];
+    }
+    $response['assets'] = $assets;
 
     $assets_stmt->close();
 
