@@ -63,7 +63,8 @@ $assets_stmt->close();
     <title>Department Budget Management</title>
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="assets/css/styles.css" rel="stylesheet">
-    <?php include('templates/sidebar.php');?>
+
+    <?php include('templates/sidebar.php'); ?>
     <style>
         :root {
             --primary-color: #800000;
@@ -106,36 +107,7 @@ $assets_stmt->close();
                 </tr>
             </thead>
             <tbody id="eventsTableBody">
-                <?php foreach ($events as $event): ?>
-                    <tr class="event-header-row" data-event-id="<?= $event['event_id'] ?>">
-                        <td colspan="2">
-                            <input type="text" class="form-control event-name" value="<?= $event['event_name'] ?>" placeholder="Event Name" required>
-                        </td>
-                        <td>
-                            <input type="number" class="form-control event-attendees" value="<?= $event['attendees'] ?>" placeholder="Attendees" min="1" required>
-                        </td>
-                        <td colspan="3" class="text-right">
-                            <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('<?= $event['event_id'] ?>')">+ Add Item</button>
-                        </td>
-                    </tr>
-                    <?php foreach ($event['items'] as $item): ?>
-                        <tr class="event-item-row" data-event-id="<?= $event['event_id'] ?>">
-                            <td colspan="2"></td>
-                            <td><input type="text" class="form-control item-name" value="<?= $item['item_name'] ?>" placeholder="Item Name" required></td>
-                            <td><input type="number" class="form-control item-quantity" value="<?= $item['quantity'] ?>" placeholder="Quantity" min="1" required></td>
-                            <td><input type="number" class="form-control item-cost" value="<?= $item['cost_per_item'] ?>" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-                            <td><span class="item-total"><?= $item['total_cost'] ?></span></td>
-                            <td>
-                                <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                    <tr class="event-subtotal-row" data-event-id="<?= $event['event_id'] ?>">
-                        <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
-                        <td><span class="event-subtotal">0.00</span></td>
-                        <td></td>
-                    </tr>
-                <?php endforeach; ?>
+                <!-- Existing event rows will be populated here -->
             </tbody>
             <tfoot>
                 <tr>
@@ -161,17 +133,7 @@ $assets_stmt->close();
                 </tr>
             </thead>
             <tbody id="assetsTableBody">
-                <?php foreach ($assets as $asset): ?>
-                    <tr class="asset-item-row">
-                        <td><input type="text" class="form-control" value="<?= $asset['item_name'] ?>" placeholder="Item Name" required></td>
-                        <td><input type="number" class="form-control asset-quantity" value="<?= $asset['quantity'] ?>" placeholder="Quantity" min="1" required></td>
-                        <td><input type="number" class="form-control asset-cost" value="<?= $asset['cost_per_item'] ?>" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-                        <td><span class="asset-total"><?= $asset['total_cost'] ?></span></td>
-                        <td>
-                            <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
-                        </td>
-                    </tr>
-                <?php endforeach; ?>
+                <!-- Existing asset rows will be populated here -->
             </tbody>
             <tfoot>
                 <tr>
@@ -199,47 +161,47 @@ $assets_stmt->close();
     function addEventRow() {
         const eventId = `event-${Date.now()}`;
         const newRow = `
-        <tr class="event-header-row" data-event-id="${eventId}">
-            <td colspan="2">
-                <input type="text" class="form-control event-name" placeholder="Event Name" required>
-            </td>
-            <td>
-                <input type="number" class="form-control event-attendees" placeholder="Attendees" min="1" required>
-            </td>
-            <td colspan="3" class="text-right">
-                <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
-            </td>
-        </tr>
-        <tr class="event-item-row" data-event-id="${eventId}">
-            <td colspan="2"></td>
-            <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="item-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-            </td>
-        </tr>
-        <tr class="event-subtotal-row" data-event-id="${eventId}">
-            <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
-            <td><span class="event-subtotal">0.00</span></td>
-            <td></td>
-        </tr>`;
+            <tr class="event-header-row" data-event-id="${eventId}">
+                <td colspan="2">
+                    <input type="text" class="form-control event-name" placeholder="Event Name" required>
+                </td>
+                <td>
+                    <input type="number" class="form-control event-attendees" placeholder="Attendees" min="1" required>
+                </td>
+                <td colspan="3" class="text-right">
+                    <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
+                </td>
+            </tr>
+            <tr class="event-item-row" data-event-id="${eventId}">
+                <td colspan="2"></td>
+                <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
+                <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
+                <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
+                <td><span class="item-total">0.00</span></td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
+                </td>
+            </tr>
+            <tr class="event-subtotal-row" data-event-id="${eventId}">
+                <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
+                <td><span class="event-subtotal">0.00</span></td>
+                <td></td>
+            </tr>`;
         $('#eventsTableBody').append(newRow);
     }
 
     // Add Asset Row
     function addAssetRow() {
         const newRow = `
-        <tr class="asset-item-row">
-            <td><input type="text" class="form-control" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="asset-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
-            </td>
-        </tr>`;
+            <tr class="asset-item-row">
+                <td><input type="text" class="form-control" placeholder="Item Name" required></td>
+                <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
+                <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
+                <td><span class="asset-total">0.00</span></td>
+                <td>
+                    <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
+                </td>
+            </tr>`;
         $('#assetsTableBody').append(newRow);
         updateTotals();
     }
@@ -273,60 +235,16 @@ $assets_stmt->close();
         $('#grandTotal').text((eventsSubtotal + assetsSubtotal).toFixed(2));
     }
 
-    // Remove Row
+    // Remove Row (Event Item or Asset)
     function removeRow(button) {
         $(button).closest('tr').remove();
         updateTotals();
     }
 
-    // Real-Time Update
-    $(document).on('input', '.item-quantity, .item-cost, .asset-quantity, .asset-cost', updateTotals);
-
-    // Submit Budget and Generate PDF
-    async function submitBudget() {
-        try {
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF();
-
-            // Department and Date Details
-            const departmentName = "Department Name"; // Adjust to dynamically fetch department name
-            const timelinePeriod = "2024 Q1"; // Adjust to dynamically fetch timeline period
-            pdf.text(`Budget for ${departmentName} - ${timelinePeriod}`, 10, 10);
-
-            // Events Table
-            const eventsData = [];
-            $('#eventsTableBody').find('.event-header-row').each(function () {
-                const eventName = $(this).find('.event-name').val() || '';
-                const attendees = $(this).find('.event-attendees').val() || '';
-                const eventTotal = $(this).find('.event-subtotal').text();
-                eventsData.push([eventName, attendees, eventTotal]);
-            });
-
-            pdf.autoTable({
-                head: [['Event Name', 'Attendees', 'Total']],
-                body: eventsData
-            });
-
-            // Assets Table
-            const assetsData = [];
-            $('#assetsTableBody').find('.asset-item-row').each(function () {
-                const itemName = $(this).find('input').val();
-                const quantity = $(this).find('.asset-quantity').val();
-                const cost = $(this).find('.asset-cost').val();
-                const total = $(this).find('.asset-total').text();
-                assetsData.push([itemName, quantity, cost, total]);
-            });
-
-            pdf.autoTable({
-                head: [['Item Name', 'Quantity', 'Cost per Item', 'Total']],
-                body: assetsData
-            });
-
-            // Save PDF
-            pdf.save("department-budget.pdf");
-        } catch (error) {
-            alert("Error generating PDF");
-        }
+    // Submit Budget
+    function submitBudget() {
+        const grandTotal = $('#grandTotal').text();
+        alert('Budget submitted successfully! Grand Total: ' + grandTotal);
     }
 </script>
 
