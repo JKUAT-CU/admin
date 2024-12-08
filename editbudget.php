@@ -1,59 +1,117 @@
 <?php
+// Enable error reporting for debugging
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-include('accesscontrol.php');
-// Check if the department already has a budget in the open timeline
-include('backend/db.php'); // Database connection
+include('accesscontrol.php'); // Validate user access
+include('backend/db.php');    // Include database connection
 
-// If everything is valid, store the open timeline info in the session
-$_SESSION['timeline'] = $timelineState['timeline'];
-
-// Validate department_id and timeline_id from the session
+// Validate session parameters
 if (!isset($_SESSION['department_id']) || !isset($_SESSION['timeline']['id'])) {
-    die("Required parameters are missing.");
+    http_response_code(400);
+    die(json_encode(['error' => 'Required parameters are missing.']));
 }
+
+// Extract session variables
 $department_id = (int)$_SESSION['department_id'];
 $timeline_id = (int)$_SESSION['timeline']['id'];
 
-// Events Query
-$events_query = "
-    SELECT e.id AS event_id, e.event_name, e.attendees, ei.id AS item_id, ei.item_name, ei.quantity, ei.cost_per_item, ei.total_cost
-    FROM events e
-    LEFT JOIN event_items ei ON e.id = ei.event_id
-    LEFT JOIN budgets b ON e.budget_id = b.id
-    WHERE b.department_id = ?
-    ORDER BY e.id";
-$events_stmt = $mysqli->prepare($events_query);
-$events_stmt->bind_param("i", $department_id);
-$events_stmt->execute();
-$events_result = $events_stmt->get_result();
+// Initialize response data
+$response = [
+    'events' => [],
+    'assets' => [],
+];
 
-// Group event data
-$events = [];
-while ($row = $events_result->fetch_assoc()) {
-    $events[$row['event_id']]['event_name'] = $row['event_name'];
-    $events[$row['event_id']]['attendees'] = $row['attendees'];
-    $events[$row['event_id']]['items'][] = $row;
+try {
+    // **Events Query**
+    $events_query = "
+        SELECT 
+            e.id AS event_id, e.event_name, e.attendees, 
+            ei.id AS item_id, ei.item_name, ei.quantity, ei.cost_per_item, ei.total_cost
+        FROM 
+            events e
+        LEFT JOIN 
+            event_items ei ON e.id = ei.event_id
+        LEFT JOIN 
+            budgets b ON e.budget_id = b.id
+        WHERE 
+            b.department_id = ?
+        ORDER BY 
+            e.id";
+    
+    $events_stmt = $mysqli->prepare($events_query);
+    if (!$events_stmt) {
+        throw new Exception("Failed to prepare events query: " . $mysqli->error);
+    }
+
+    $events_stmt->bind_param("i", $department_id);
+    $events_stmt->execute();
+    $events_result = $events_stmt->get_result();
+
+    // Group event data by event ID
+    $events = [];
+    while ($row = $events_result->fetch_assoc()) {
+        $event_id = $row['event_id'];
+        if (!isset($events[$event_id])) {
+            $events[$event_id] = [
+                'event_name' => $row['event_name'],
+                'attendees' => $row['attendees'],
+                'items' => [],
+            ];
+        }
+        if ($row['item_id']) {
+            $events[$event_id]['items'][] = [
+                'item_id' => $row['item_id'],
+                'item_name' => $row['item_name'],
+                'quantity' => $row['quantity'],
+                'cost_per_item' => $row['cost_per_item'],
+                'total_cost' => $row['total_cost'],
+            ];
+        }
+    }
+    $response['events'] = $events;
+
+    $events_stmt->close();
+
+    // **Assets Query**
+    $assets_query = "
+        SELECT 
+            a.id AS asset_id, a.item_name, a.quantity, a.cost_per_item, a.total_cost
+        FROM 
+            assets a
+        LEFT JOIN 
+            budgets b ON a.budget_id = b.id
+        WHERE 
+            b.department_id = ?";
+    
+    $assets_stmt = $mysqli->prepare($assets_query);
+    if (!$assets_stmt) {
+        throw new Exception("Failed to prepare assets query: " . $mysqli->error);
+    }
+
+    $assets_stmt->bind_param("i", $department_id);
+    $assets_stmt->execute();
+    $assets_result = $assets_stmt->get_result();
+
+    $response['assets'] = $assets_result->fetch_all(MYSQLI_ASSOC);
+
+    $assets_stmt->close();
+
+    // Return response data as JSON
+    header('Content-Type: application/json');
+    echo json_encode($response);
+} catch (Exception $e) {
+    // Handle exceptions
+    http_response_code(500);
+    error_log("Error: " . $e->getMessage());
+    echo json_encode(['error' => $e->getMessage()]);
 }
 
-// Assets Query
-$assets_query = "
-    SELECT a.id AS asset_id, a.item_name, a.quantity, a.cost_per_item, a.total_cost
-    FROM assets a
-    LEFT JOIN budgets b ON a.budget_id = b.id
-    WHERE b.department_id = ?";
-$assets_stmt = $mysqli->prepare($assets_query);
-$assets_stmt->bind_param("i", $department_id);
-$assets_stmt->execute();
-$assets_result = $assets_stmt->get_result();
-$assets = $assets_result->fetch_all(MYSQLI_ASSOC);
-
-// Close Statements
-$events_stmt->close();
-$assets_stmt->close();
+// Close database connection
+$mysqli->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
