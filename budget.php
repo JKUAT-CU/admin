@@ -1,36 +1,46 @@
 <?php
-include('accesscontrol.php');
-// Check if the department already has a budget in the open timeline
-include('backend/db.php'); // Database connection
+include('accesscontrol.php'); // Check for access control
+include('backend/db.php');    // Database connection
 
-// If everything is valid, store the open timeline info in the session
-$_SESSION['timeline'] = $timelineState['timeline'];
-
-// Validate department_id and timeline_id from the session
-if (!isset($_SESSION['department_id']) || !isset($_SESSION['timeline']['id'])) {
-    die("Required parameters are missing.");
+// Validate and store the open timeline info in the session
+if (isset($timelineState['timeline'])) {
+    $_SESSION['timeline'] = $timelineState['timeline'];
 }
+
+// Validate `department_id` and `timeline_id` from the session
+if (!isset($_SESSION['department_id']) || !isset($_SESSION['timeline']['id'])) {
+    die("<script>alert('Error: Required parameters are missing.'); window.location.href='dashboard';</script>");
+}
+
 $department_id = (int)$_SESSION['department_id'];
 $timeline_id = (int)$_SESSION['timeline']['id'];
 
-// Check if an existing budget exists
+// Prepare the query to check if an existing budget exists
 $existingBudgetQuery = $mysqli->prepare("SELECT id FROM budgets WHERE department_id = ? AND timeline_id = ?");
 if (!$existingBudgetQuery) {
-    die("Database query failed: " . $mysqli->error);
+    die("<script>alert('Error: Failed to prepare the database query.'); window.location.href='dashboard';</script>");
 }
+
+// Bind parameters and execute the query
 $existingBudgetQuery->bind_param("ii", $department_id, $timeline_id);
-$existingBudgetQuery->execute();
-$existingBudgetResult = $existingBudgetQuery->get_result();
+if (!$existingBudgetQuery->execute()) {
+    die("<script>alert('Error: Query execution failed.'); window.location.href='dashboard';</script>");
+}
 
-if ($existingBudgetResult->num_rows > 0) {
-    // Fetch the existing budget ID
-    $existingBudget = $existingBudgetResult->fetch_assoc();
-    $budgetId = $existingBudget['id'];
+// Bind the result variable
+$existingBudgetQuery->bind_result($budgetId);
 
+// Fetch the result
+if ($existingBudgetQuery->fetch()) {
     // Redirect to the editbudget page with the budget ID
     header("Location: editbudget?budget_id=$budgetId");
     exit();
+} else {
+    echo "<script>alert('No existing budget found for this department and timeline.'); window.location.href='createbudget';</script>";
+    exit();
 }
+
+// Close the statement
 $existingBudgetQuery->close();
 ?>
 
