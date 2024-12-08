@@ -27,21 +27,6 @@ if (!$existingBudgetQuery->execute()) {
     die("<script>alert('Error: Query execution failed.'); window.location.href='dashboard';</script>");
 }
 
-// Bind the result variable
-$existingBudgetQuery->bind_result($budgetId);
-
-// Fetch the result
-if ($existingBudgetQuery->fetch()) {
-    // Redirect to the editbudget page with the budget ID
-    header("Location: editbudget?budget_id=$budgetId");
-    exit();
-} else {
-    echo "<script>alert('No existing budget found for this department and timeline.'); window.location.href='createbudget';</script>";
-    exit();
-}
-
-// Close the statement
-$existingBudgetQuery->close();
 ?>
 
 <!DOCTYPE html>
