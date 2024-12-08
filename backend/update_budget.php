@@ -135,5 +135,6 @@ try {
     echo json_encode(['error' => 'Failed to update budget: ' . $e->getMessage()]);
 }
 
+// Close the database connection
 $mysqli->close();
 ?>

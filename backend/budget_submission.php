@@ -1,8 +1,4 @@
 <?php
-// ini_set('display_errors', 1);
-// ini_set('display_startup_errors', 1);
-// error_reporting(E_ALL);
-
 include('db.php'); // Database connection
 include('../session.php');
 
@@ -18,23 +14,38 @@ $department_id = $_SESSION['department_id'];
 
 // Check if an open timeline exists
 $timelineQuery = $mysqli->prepare("SELECT id FROM activity_timelines WHERE NOW() BETWEEN start_date AND end_date LIMIT 1");
+if (!$timelineQuery) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Failed to prepare timeline query: ' . $mysqli->error]);
+    exit();
+}
+
 $timelineQuery->execute();
-$timelineResult = $timelineQuery->get_result();
-if ($timelineResult->num_rows === 0) {
+$timelineQuery->bind_result($timeline_id);
+
+if ($timelineQuery->fetch()) {
+    $timelineQuery->close();
+} else {
+    $timelineQuery->close();
     http_response_code(400);
     echo json_encode(['error' => 'No open timeline available']);
     exit();
 }
-$openTimeline = $timelineResult->fetch_assoc();
-$timeline_id = $openTimeline['id'];
-$timelineQuery->close();
 
 // Check if the department already has a budget in the open timeline
 $existingBudgetQuery = $mysqli->prepare("SELECT id FROM budgets WHERE department_id = ? AND timeline_id = ?");
+if (!$existingBudgetQuery) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Failed to prepare budget check query: ' . $mysqli->error]);
+    exit();
+}
+
 $existingBudgetQuery->bind_param("ii", $department_id, $timeline_id);
 $existingBudgetQuery->execute();
-$existingBudgetResult = $existingBudgetQuery->get_result();
-if ($existingBudgetResult->num_rows > 0) {
+$existingBudgetQuery->bind_result($budget_id);
+
+if ($existingBudgetQuery->fetch()) {
+    $existingBudgetQuery->close();
     http_response_code(400);
     echo json_encode(['error' => 'A budget already exists for this department during the current timeline']);
     exit();
@@ -72,6 +83,9 @@ $mysqli->begin_transaction();
 try {
     // Save the main budget record
     $stmt = $mysqli->prepare("INSERT INTO budgets (department_id, timeline_id, total_amount) VALUES (?, ?, ?)");
+    if (!$stmt) {
+        throw new Exception('Failed to prepare budget insert query: ' . $mysqli->error);
+    }
     $stmt->bind_param("iid", $department_id, $timeline_id, $grand_total);
     $stmt->execute();
     $budget_id = $stmt->insert_id;
