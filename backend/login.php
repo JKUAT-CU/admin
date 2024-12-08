@@ -21,27 +21,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         if ($stmt = $mysqli->prepare($query)) {
             $stmt->bind_param("s", $email);
             $stmt->execute();
-            $result = $stmt->get_result();
+
+            // Bind result variables
+            $stmt->bind_result($id, $emailResult, $hashedPassword, $roleId, $departmentId, $departmentName, $roleName);
             
-            if ($result->num_rows > 0) {
-                $accounts = [];
-                while ($row = $result->fetch_assoc()) {
-                    if (password_verify($password, $row['password'])) {
-                        $accounts[] = $row; // Collect valid accounts
-                    }
+            $accounts = [];
+            while ($stmt->fetch()) {
+                // Verify password
+                if (password_verify($password, $hashedPassword)) {
+                    // Collect valid accounts
+                    $accounts[] = [
+                        'id' => $id,
+                        'email' => $emailResult,
+                        'role_id' => $roleId,
+                        'department_id' => $departmentId,
+                        'department_name' => $departmentName,
+                        'role_name' => $roleName
+                    ];
                 }
-                
-                if (!empty($accounts)) {
-                    // Save accounts in session and redirect to the selection page
-                    $_SESSION['accounts'] = $accounts;
-                    header("Location: ../accountselection");
-                    exit();
-                } else {
-                    echo "<script>alert('Invalid password');</script>";
-                }
-            } else {
-                echo "<script>alert('No user found with that email');</script>";
             }
+
+            if (!empty($accounts)) {
+                // Save accounts in session and redirect to the selection page
+                $_SESSION['accounts'] = $accounts;
+                header("Location: ../accountselection");
+                exit();
+            } else {
+                echo "<script>alert('Invalid email or password');</script>";
+            }
+
             $stmt->close();
         } else {
             echo "<script>alert('Database error');</script>";
