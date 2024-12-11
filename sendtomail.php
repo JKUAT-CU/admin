@@ -1,5 +1,5 @@
 <?php
-session_start();
+session_start(); // Start the session
 
 // Import PHPMailer classes into the global namespace
 use PHPMailer\PHPMailer\PHPMailer;
@@ -8,14 +8,14 @@ use PHPMailer\PHPMailer\Exception;
 // Load Composer's autoloader
 require 'vendor/autoload.php';
 
-// Database connection details
-$host = 'localhost';
-$username = 'jkuatcu_devs';
-$password = '#God@isAble!#';
-$database = 'jkuatcu_data';
+// Database credentials
+$servername = "localhost";
+$username = "jkuatcu_daraja";
+$password = "K@^;daY0*j(n";
+$database = "jkuatcu_daraja";
 
 // Create connection
-$conn = new mysqli($host, $username, $password, $database);
+$conn = new mysqli($servername, $username, $password, $database);
 
 // Check connection
 if ($conn->connect_error) {
@@ -24,72 +24,68 @@ if ($conn->connect_error) {
 
 // Check if the request method is POST
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Retrieve PDF and email address
+    // Retrieve data from the request
+    $department_name = $_POST['department_name'] ?? 'Department';
+    $year = $_POST['year'] ?? date('Y');
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
-    $pdfData = base64_decode($_POST['pdfData'] ?? ''); // Assume PDF is sent as a base64 string
-    $fileName = $_POST['fileName'] ?? 'budget.pdf';
+    $finance_email = 'finance@jkuatcu.org';
 
-    // Validate email
+    // Validate email format
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         $_SESSION['error'] = "Invalid email format";
-        header("Location: budget.php");
+        header("Location: submit_budget.php");
         exit();
     }
 
-    // Save the PDF temporarily
-    $pdfPath = sys_get_temp_dir() . '/' . $fileName;
-    file_put_contents($pdfPath, $pdfData);
+    // Validate and process uploaded PDF
+    if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
+        $_SESSION['error'] = "Invalid PDF upload.";
+        header("Location: submit_budget.php");
+        exit();
+    }
 
-    // Create PHPMailer instance
+    $pdfPath = $_FILES['pdf']['tmp_name'];
+    $pdfContent = file_get_contents($pdfPath);
+
+    // Create a PHPMailer instance
     $mail = new PHPMailer(true);
 
     try {
         // Server settings
-        $mail->isSMTP();
-        $mail->Host = 'mail.jkuatcu.org';
-        $mail->SMTPAuth = true;
-        $mail->Username = 'reset@jkuatcu.org';
-        $mail->Password = '8&+cqTnOa!A5';
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port = 465;
+        $mail->isSMTP();                                            // Send using SMTP
+        $mail->Host       = 'mail.jkuatcu.org';                     // Set the SMTP server to send through
+        $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
+        $mail->Username   = 'sender@jkuatcu.org';                   // SMTP username
+        $mail->Password   = '8&+cqTnOa!A5';                         // SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
+        $mail->Port       = 465;                                    // TCP port to connect to
 
-        // Sender and recipients
-        $mail->setFrom('reset@jkuatcu.org', 'JKUATCU Treasury');
-        $mail->addAddress($email); // User's email
-        $mail->addAddress('treasury@jkuatcu.org'); // Treasury email
+        // Sender and recipient
+        $mail->setFrom('sender@jkuatcu.org', 'JKUATCU System');
+        $mail->addAddress($email, 'Department Representative');
+        $mail->addAddress($finance_email, 'Finance Department');
 
-        // Email content
-        $mail->isHTML(true);
-        $mail->Subject = "Budget Submission Confirmation";
-        $mail->Body = "<p>Dear User,</p>
-                       <p>Your budget has been successfully submitted. Please find the attached PDF for your records.</p>
-                       <p>Best regards,<br>JKUATCU Treasury</p>";
+        // Attach the PDF
+        $mail->addStringAttachment($pdfContent, "Budget_{$department_name}_{$year}.pdf");
 
-        // Attach PDF
-        $mail->addAttachment($pdfPath, $fileName);
+        // Email subject and body
+        $mail->Subject = "Budget Submission - {$department_name} ({$year})";
+        $mail->Body = "Dear Finance,\n\nThe budget for {$department_name} for the year {$year} has been submitted.\n\nBest Regards,\nJKUATCU System";
 
         // Send email
         $mail->send();
 
-        // Cleanup temporary file
-        unlink($pdfPath);
-
-        $_SESSION['success'] = "Budget submitted and email sent successfully!";
-        header("Location: budget.php");
+        $_SESSION['success'] = "Budget submitted and emailed successfully.";
+        header("Location: submit_budget.php");
         exit();
     } catch (Exception $e) {
-        // Handle errors
         $_SESSION['error'] = "Failed to send email. Error: {$mail->ErrorInfo}";
-        unlink($pdfPath); // Cleanup even on error
-        header("Location: budget.php");
+        header("Location: submit_budget.php");
         exit();
     }
 } else {
     $_SESSION['error'] = "Invalid request method";
-    header("Location: budget.php");
+    header("Location: submit_budget.php");
     exit();
 }
-
-// Close database connection
-$conn->close();
 ?>
