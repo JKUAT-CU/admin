@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Check token validity
-    $checkTokenQuery = "SELECT email, used, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed FROM password_reset WHERE token = ?";
+    $checkTokenQuery = "SELECT email TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed FROM password_resets WHERE token = ?";
     $stmtCheckToken = $mysqli->prepare($checkTokenQuery);
 
     if ($stmtCheckToken) {
