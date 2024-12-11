@@ -418,7 +418,7 @@ if (!$existingBudgetQuery->execute()) {
         }).then(response => {
             if (response.ok) {
                 alert("Budget PDF submitted and emailed successfully!");
-                window.location.href = "dashboard";
+                window.location.href = "index";
             } else {
                 alert("Error: Could not send the email. Please try again.");
             }
