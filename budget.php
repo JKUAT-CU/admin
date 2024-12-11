@@ -254,7 +254,16 @@ if (!$existingBudgetQuery->execute()) {
     $(document).on('input', '.item-quantity, .item-cost, .asset-quantity, .asset-cost', updateTotals);
 
     // Submit Budget
-    async function submitBudget() {
+    const payload = {
+            department_name: departmentName,
+            date,
+            events: eventGroups,
+            assets: assetsData,
+            grand_total: grandTotal.toFixed(2)
+        };
+
+    // Submit Budget with Email and Backend Submission
+async function submitBudget() {
     try {
         // Fetch letterhead image
         const letterheadImage = await fetch("assets/images/letterhead.gif")
@@ -395,62 +404,80 @@ if (!$existingBudgetQuery->execute()) {
             currentY = pdf.lastAutoTable.finalY + 10;
         });
 
-        // Grand Total
-        pdf.setFontSize(14);
-        pdf.text(`Grand Total: KES ${grandTotal.toFixed(2)}`, 10, currentY + 10);
+        // Add Assets to PDF
+        if (assetsData.length > 0) {
+            pdf.setFontSize(12);
+            pdf.text("Assets:", 10, currentY);
 
-        // Save the PDF
-        pdf.save(`${departmentName}_Budget_${currentYear}.pdf`);
+            const assetTableData = assetsData.map(item => [item.item_name, item.quantity, item.cost_per_item.toFixed(2), item.total_cost.toFixed(2)]);
+            assetTableData.push(["Subtotal", "", "", assetSubtotal]);
+            grandTotal += parseFloat(assetSubtotal);
 
-        // Send PDF to Backend for Email
-        const pdfData = pdf.output("blob");
-        const formData = new FormData();
-        formData.append("pdf", pdfData);
-        formData.append("department_name", departmentName);
-        formData.append("year", currentYear);
-        formData.append("date", new Date().toISOString());
-        formData.append("email", "<?php echo htmlspecialchars($_SESSION['email']); ?>");
+            pdf.autoTable({
+                startY: currentY + 5,
+                head: [["Asset Name", "Quantity", "Cost per Item", "Total"]],
+                body: assetTableData,
+                theme: 'grid',
+                headStyles: { fillColor: [8, 144, 0] },
+                bodyStyles: { textColor: [0, 0, 0] },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+            });
 
-        // Send PDF via Email
-        const response = await fetch("sendtomail.php", {
-            method: "POST",
-            body: formData
-        });
-
-        if (!response.ok) {
-            throw new Error("Could not send the email. Please try again.");
+            currentY = pdf.lastAutoTable.finalY + 10;
         }
 
+        // Add Grand Total
+        pdf.setFontSize(12);
+        pdf.text(`Grand Total: ${grandTotal.toFixed(2)}`, 10, currentY);
+
+        // Save PDF
+        pdf.save(`${departmentName}_Budget_for_${currentYear}.pdf`);
+
         // Submit data to backend
-        const payload = {
-            department_name: departmentName,
-            date,
-            events: eventGroups,
-            assets: assetsData,
-            grand_total: grandTotal.toFixed(2)
-        };
 
-
-        const backendResponse = await fetch("backend/budget_submission.php", {
+        const response = await fetch("backend/budget_submission.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload)
         });
 
-        if (!backendResponse.ok) {
-            throw new Error("Error while processing backend submission.");
+        if (response.ok) {
+            // Email sending logic goes here
+            await sendEmail(payload);  // Send email with budget data
+            alert("Budget submitted successfully!");
+            // window.location.href = "index.php"; // Redirect to dashboard on successful submission
+        } else {
+            alert("Failed to submit budget. Please try again.");
         }
 
-        alert("Budget PDF submitted and emailed successfully!");
-        window.location.href = "index";
-
     } catch (error) {
-        console.error("Error:", error);
-        alert("Error: Could not submit the budget. Please try again.");
+        console.error("Error submitting budget:", error);
+        alert("An unexpected error occurred. Please try again.");
     }
 }
 
-</script>
+// Example function for sending an email
+async function sendEmail(payload) {
+    const emailData = {
+        subject: "Budget Submission",
+        body: JSON.stringify(payload), // You can format this as needed
+        to: "example@example.com" // Replace with your email
+    };
+
+    const response = await fetch("backend/email_sender.php", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(emailData)
+    });
+
+    if (response.ok) {
+        console.log("Email sent successfully.");
+    } else {
+        console.error("Failed to send email.");
+    }
+}
+
+   </script>
 
 </body>
 </html>
