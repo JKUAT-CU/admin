@@ -127,134 +127,111 @@ if (!$existingBudgetQuery->execute()) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
 
 <script>
-    // Add Event Row
-    function addEventRow() {
-        const eventId = `event-${Date.now()}`;
-        const newRow = `
-        <!-- Event Header Row -->
-        <tr class="event-header-row" data-event-id="${eventId}">
-            <td colspan="2">
-                <input type="text" class="form-control event-name" placeholder="Event Name" required>
-            </td>
-            <td>
-                <input type="number" class="form-control event-attendees" placeholder="Attendees" min="1" required>
-            </td>
-            <td colspan="3" class="text-right">
-                <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
-            </td>
-        </tr>
-        <!-- Initial Item Row -->
-        <tr class="event-item-row" data-event-id="${eventId}">
-            <td colspan="2"></td>
-            <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="item-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-            </td>
-        </tr>
-        <!-- Event Subtotal Row -->
-        <tr class="event-subtotal-row" data-event-id="${eventId}">
-            <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
-            <td><span class="event-subtotal">0.00</span></td>
+// Add Event Row
+function addEventRow() {
+    const eventId = `event-${Date.now()}`;
+    const newRow = `
+    <!-- Event Header Row -->
+    <tr class="event-header-row" data-event-id="${eventId}">
+        <td colspan="2">
+            <input type="text" class="form-control event-name" placeholder="Event Name" required>
+        </td>
+        <td>
+            <input type="number" class="form-control event-attendees" placeholder="Attendees" min="1" required>
+        </td>
+        <td colspan="3" class="text-right">
+            <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
+        </td>
+    </tr>
+    <!-- Initial Item Row -->
+    <tr class="event-item-row" data-event-id="${eventId}">
+        <td colspan="2"></td>
+        <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
+        <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
+        <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
+        <td><span class="item-total">0.00</span></td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
+        </td>
+    </tr>
+    <!-- Event Subtotal Row -->
+    <tr class="event-subtotal-row" data-event-id="${eventId}">
+        <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
+        <td><span class="event-subtotal">0.00</span></td>
+        <td></td>
+    </tr>`;
+    $('#eventsTableBody').append(newRow);
+}
+
+// Add Additional Item Row for Event
+function addEventItemRow(eventId) {
+    const newItemRow = `
+    <tr class="event-item-row" data-event-id="${eventId}">
+        <td colspan="2"></td>
+        <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
+        <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
+        <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
+        <td><span class="item-total">0.00</span></td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
+        </td>
+    </tr>`;
+    $(`tr[data-event-id="${eventId}"].event-subtotal-row`).before(newItemRow);
+}
+
+// Add Asset Row
+function addAssetRow() {
+    const newRow = `
+    <tr class="asset-item-row">
+        <td><input type="text" class="form-control" placeholder="Item Name" required></td>
+        <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
+        <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
+        <td><span class="asset-total">0.00</span></td>
+        <td>
+            <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
+        </td>
+    </tr>`;
+    const subtotalRow = $('#assetsTableBody .asset-subtotal-row');
+    if (subtotalRow.length) {
+        subtotalRow.before(newRow);
+    } else {
+        const subtotalRowHtml = `
+        <tr class="asset-subtotal-row">
+            <td colspan="3" class="text-right"><strong>Assets Subtotal:</strong></td>
+            <td class="assets-subtotal">0.00</td>
             <td></td>
         </tr>`;
-        $('#eventsTableBody').append(newRow);
+        $('#assetsTableBody').append(newRow).append(subtotalRowHtml);
     }
+    updateTotals();
+}
 
-    // Add Additional Item Row for Event
-    function addEventItemRow(eventId) {
-        const newItemRow = `
-        <tr class="event-item-row" data-event-id="${eventId}">
-            <td colspan="2"></td>
-            <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="item-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-            </td>
-        </tr>`;
-        $(`tr[data-event-id="${eventId}"].event-subtotal-row`).before(newItemRow);
-    }
-
-    // Add Asset Row
-    function addAssetRow() {
-        const newRow = `
-        <tr class="asset-item-row">
-            <td><input type="text" class="form-control" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="asset-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
-            </td>
-        </tr>`;
-        const subtotalRow = $('#assetsTableBody .asset-subtotal-row');
-        if (subtotalRow.length) {
-            subtotalRow.before(newRow);
-        } else {
-            const subtotalRowHtml = `
-            <tr class="asset-subtotal-row">
-                <td colspan="3" class="text-right"><strong>Assets Subtotal:</strong></td>
-                <td class="assets-subtotal">0.00</td>
-                <td></td>
-            </tr>`;
-            $('#assetsTableBody').append(newRow).append(subtotalRowHtml);
-        }
-        updateTotals();
-    }
-
-    // Update Asset Subtotal
-    function updateAssetSubtotal() {
-        let assetsSubtotal = 0;
-        $('#assetsTableBody .asset-item-row').each(function () {
-            const qty = parseFloat($(this).find('.asset-quantity').val()) || 0;
-            const cost = parseFloat($(this).find('.asset-cost').val()) || 0;
-            const total = qty * cost;
-            $(this).find('.asset-total').text(total.toFixed(2));
-            assetsSubtotal += total;
-        });
-        $('#assetsTableBody .assets-subtotal').text(assetsSubtotal.toFixed(2));
-        return assetsSubtotal;
-    }
-
-    // Update Totals
-    let debounceTimer;
-    function updateTotals() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            let eventsSubtotal = 0;
-            $('#eventsTableBody').find('.event-header-row').each(function () {
-                const eventId = $(this).data('event-id');
-                let eventTotal = 0;
-                $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
-                    const qty = parseFloat($(this).find('.item-quantity').val()) || 0;
-                    const cost = parseFloat($(this).find('.item-cost').val()) || 0;
-                    const total = qty * cost;
-                    $(this).find('.item-total').text(total.toFixed(2));
-                    eventTotal += total;
-                });
-                $(`.event-subtotal-row[data-event-id="${eventId}"] .event-subtotal`).text(eventTotal.toFixed(2));
-                eventsSubtotal += eventTotal;
+// Update Totals
+let debounceTimer;
+function updateTotals() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        let eventsSubtotal = 0;
+        $('#eventsTableBody').find('.event-header-row').each(function () {
+            const eventId = $(this).data('event-id');
+            let eventTotal = 0;
+            $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
+                const qty = parseFloat($(this).find('.item-quantity').val()) || 0;
+                const cost = parseFloat($(this).find('.item-cost').val()) || 0;
+                const total = qty * cost;
+                $(this).find('.item-total').text(total.toFixed(2));
+                eventTotal += total;
             });
-            const assetsSubtotal = updateAssetSubtotal();
-            $('#grandTotal').text((eventsSubtotal + assetsSubtotal).toFixed(2));
-        }, 300);
-    }
+            $(`.event-subtotal-row[data-event-id="${eventId}"] .event-subtotal`).text(eventTotal.toFixed(2));
+            eventsSubtotal += eventTotal;
+        });
+        const assetsSubtotal = updateAssetSubtotal();
+        $('#grandTotal').text((eventsSubtotal + assetsSubtotal).toFixed(2));
+    }, 300);
+}
 
-    // Remove Row
-    function removeRow(button) {
-        $(button).closest('tr').remove();
-        updateTotals();
-    }
-
-    // Real-Time Update
-    $(document).on('input', '.item-quantity, .item-cost, .asset-quantity, .asset-cost', updateTotals);
-
-    // Submit Budget
-    async function submitBudget() {
+// Submit Budget
+async function submitBudget() {
     try {
         // Fetch letterhead image
         const letterheadImage = await fetch("assets/images/letterhead.gif")
@@ -395,49 +372,62 @@ if (!$existingBudgetQuery->execute()) {
             currentY = pdf.lastAutoTable.finalY + 10;
         });
 
-        // Grand Total
-        pdf.setFontSize(14);
-        pdf.text(`Grand Total: KES ${grandTotal.toFixed(2)}`, 10, currentY + 10);
+        // Add Assets to PDF
+        if (assetsData.length > 0) {
+            pdf.setFontSize(12);
+            pdf.text("Assets:", 10, currentY);
 
-        // Save the PDF
-        pdf.save(`${departmentName}_Budget_${currentYear}.pdf`);
+            const assetTableData = assetsData.map(item => [item.item_name, item.quantity, item.cost_per_item.toFixed(2), item.total_cost.toFixed(2)]);
+            assetTableData.push(["Subtotal", "", "", assetSubtotal]);
+            grandTotal += parseFloat(assetSubtotal);
 
-        // Send PDF to Backend for Email
-        const pdfData = pdf.output("blob");
+            pdf.autoTable({
+                startY: currentY + 5,
+                head: [["Asset Name", "Quantity", "Cost per Item", "Total"]],
+                body: assetTableData,
+                theme: 'grid',
+                headStyles: { fillColor: [8, 144, 0] },
+                bodyStyles: { textColor: [0, 0, 0] },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+            });
+
+            currentY = pdf.lastAutoTable.finalY + 10;
+        }
+
+        // Add Grand Total
+        pdf.setFontSize(12);
+        pdf.text(`Grand Total: ${grandTotal.toFixed(2)}`, 10, currentY);
+
+        // Save PDF
+        const pdfOutput = pdf.output('blob'); // Save as blob to send it via backend
         const formData = new FormData();
-        formData.append("pdf", pdfData);
-        formData.append("department_name", departmentName);
-        formData.append("year", currentYear);
-        formData.append("date", new Date().toISOString());
-        formData.append("email", "<?php echo htmlspecialchars($_SESSION['email']); ?>");
-        
+        formData.append('department_name', departmentName);
+        formData.append('date', date);
+        formData.append('events', JSON.stringify(eventGroups));
+        formData.append('assets', JSON.stringify(assetsData));
+        formData.append('grand_total', grandTotal.toFixed(2));
+        formData.append('pdf', pdfOutput, `${departmentName}_Budget_${currentYear}.pdf`);
+
+        // Submit data to backend
         const response = await fetch("backend/budget_submission.php", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: formData
         });
 
-        // Send PDF via Email
-        fetch("sendtomail.php", {
-            method: "POST",
-            body: formData
-        }).then(response => {
-            if (response.ok) {
-                alert("Budget PDF submitted and emailed successfully!");
-                window.location.href = "index";
-            } else {
-                alert("Error: Could not send the email. Please try again.");
-            }
-        }).catch(error => {
-            console.error("Error:", error);
-            alert("Error: Could not send the email. Please try again.");
-        });
+        if (response.ok) {
+            alert("Budget submitted successfully!");
+            // Optionally: Send PDF via email from backend
+        } else {
+            alert("Failed to submit budget. Please try again.");
+        }
+
     } catch (error) {
-        console.error("Error creating the PDF:", error);
-        alert("Error: Could not generate the PDF. Please try again.");
+        console.error("Error submitting budget:", error);
+        alert("An unexpected error occurred. Please try again.");
     }
 }
 </script>
+
 
 </body>
 </html>
