@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validate passwords
     if ($password !== $confirmPassword) {
         $_SESSION['error'] = "Passwords do not match";
-        header("Location: preset.php?token=$token");
+        header("Location: reset.php?token=$token");
         exit();
     }
 
