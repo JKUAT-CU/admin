@@ -1,6 +1,7 @@
 <?php
 session_start();
-include 'backend/db.php';
+include 'backend/db.php'; // Ensure this file correctly initializes $mysqli
+
 // Check database connection
 if ($mysqli->connect_error) {
     die("Connection failed: " . $mysqli->connect_error);
@@ -19,7 +20,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Check token validity
-    $checkTokenQuery = "SELECT email TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed FROM password_resets WHERE token = ?";
+    $checkTokenQuery = "SELECT email, used, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed 
+                        FROM password_resets WHERE token = ?";
     $stmtCheckToken = $mysqli->prepare($checkTokenQuery);
 
     if ($stmtCheckToken) {
@@ -47,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Hash the password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        // Update user's password
+        // Update all users with the same email address
         $updatePasswordQuery = "UPDATE users SET password = ? WHERE email = ?";
         $stmtUpdatePassword = $mysqli->prepare($updatePasswordQuery);
 
@@ -55,9 +57,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtUpdatePassword->bind_param("ss", $hashedPassword, $email);
             $stmtUpdatePassword->execute();
 
-            if ($stmtUpdatePassword->affected_rows === 1) {
+            if ($stmtUpdatePassword->affected_rows > 0) {
                 // Mark token as used
-                $markTokenUsedQuery = "UPDATE password_reset SET used = TRUE WHERE token = ?";
+                $markTokenUsedQuery = "UPDATE password_resets SET used = TRUE WHERE token = ?";
                 $stmtMarkTokenUsed = $mysqli->prepare($markTokenUsedQuery);
 
                 if ($stmtMarkTokenUsed) {
@@ -67,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 // Password reset successful
-                $_SESSION['success'] = "Password reset successful. You can now login with your new password.";
+                $_SESSION['success'] = "Password reset successful for all associated accounts. You can now log in with your new password.";
                 header("Location: login.php");
                 exit();
             } else {
@@ -90,5 +92,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: reset.php");
     exit();
 }
-
 ?>
