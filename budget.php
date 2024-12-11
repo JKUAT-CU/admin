@@ -263,7 +263,7 @@ if (!$existingBudgetQuery->execute()) {
         };
 
     // Submit Budget with Email and Backend Submission
-async function submitBudget() {
+    async function submitBudget() {
     try {
         // Fetch letterhead image
         const letterheadImage = await fetch("assets/images/letterhead.gif")
@@ -292,19 +292,8 @@ async function submitBudget() {
             return;
         }
 
-        // PDF Header
-        if (letterheadImage) {
-            pdf.addImage(letterheadImage, "GIF", 10, 10, 190, 30);
-        }
-
         const currentYear = new Date().getFullYear();
-        pdf.setFontSize(16);
-        pdf.text(`${departmentName} Budget for the Year ${currentYear}`, 10, 50);
-
         const date = new Date().toLocaleDateString();
-        pdf.setFontSize(10);
-        pdf.text(`Date: ${date}`, 10, 60);
-
         const eventGroups = [];
         let validationError = false;
 
@@ -377,64 +366,26 @@ async function submitBudget() {
         if (validationError) return;
 
         const assetSubtotal = assetsData.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
+        let grandTotal = parseFloat(assetSubtotal);
 
-        let currentY = 70;
-        let grandTotal = 0;
-
-        // Add Events to PDF
+        // Calculate Grand Total from Events
         eventGroups.forEach(event => {
-            pdf.setFontSize(12);
-            pdf.text(`Event: ${event.event_name}`, 10, currentY);
-            pdf.text(`Attendees: ${event.attendees}`, 10, currentY + 7);
-
-            const eventTableData = event.items.map(item => [item.item_name, item.quantity, item.cost_per_item.toFixed(2), item.total_cost.toFixed(2)]);
-            eventTableData.push(["Subtotal", "", "", event.subtotal.toFixed(2)]);
             grandTotal += parseFloat(event.subtotal);
-
-            pdf.autoTable({
-                startY: currentY + 10,
-                head: [["Item Name", "Quantity", "Cost per Item", "Total"]],
-                body: eventTableData,
-                theme: 'grid',
-                headStyles: { fillColor: [128, 0, 0] },
-                bodyStyles: { textColor: [0, 0, 0] },
-                alternateRowStyles: { fillColor: [245, 245, 245] },
-            });
-
-            currentY = pdf.lastAutoTable.finalY + 10;
         });
 
-        // Add Assets to PDF
-        if (assetsData.length > 0) {
-            pdf.setFontSize(12);
-            pdf.text("Assets:", 10, currentY);
-
-            const assetTableData = assetsData.map(item => [item.item_name, item.quantity, item.cost_per_item.toFixed(2), item.total_cost.toFixed(2)]);
-            assetTableData.push(["Subtotal", "", "", assetSubtotal]);
-            grandTotal += parseFloat(assetSubtotal);
-
-            pdf.autoTable({
-                startY: currentY + 5,
-                head: [["Asset Name", "Quantity", "Cost per Item", "Total"]],
-                body: assetTableData,
-                theme: 'grid',
-                headStyles: { fillColor: [8, 144, 0] },
-                bodyStyles: { textColor: [0, 0, 0] },
-                alternateRowStyles: { fillColor: [245, 245, 245] },
-            });
-
-            currentY = pdf.lastAutoTable.finalY + 10;
-        }
-
-        // Add Grand Total
-        pdf.setFontSize(12);
-        pdf.text(`Grand Total: ${grandTotal.toFixed(2)}`, 10, currentY);
+        // Define payload
+        const payload = {
+            department_name: departmentName,
+            date,
+            events: eventGroups,
+            assets: assetsData,
+            grand_total: grandTotal.toFixed(2)
+        };
 
         // Save PDF
         pdf.save(`${departmentName}_Budget_for_${currentYear}.pdf`);
 
         // Submit data to backend
-
         const response = await fetch("backend/budget_submission.php", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -442,10 +393,8 @@ async function submitBudget() {
         });
 
         if (response.ok) {
-            // Email sending logic goes here
-            await sendEmail(payload);  // Send email with budget data
+            await sendEmail(payload); // Email the budget data
             alert("Budget submitted successfully!");
-            // window.location.href = "index.php"; // Redirect to dashboard on successful submission
         } else {
             alert("Failed to submit budget. Please try again.");
         }
@@ -453,27 +402,6 @@ async function submitBudget() {
     } catch (error) {
         console.error("Error submitting budget:", error);
         alert("An unexpected error occurred. Please try again.");
-    }
-}
-
-// Example function for sending an email
-async function sendEmail(payload) {
-    const emailData = {
-        subject: "Budget Submission",
-        body: JSON.stringify(payload), // You can format this as needed
-        to: "example@example.com" // Replace with your email
-    };
-
-    const response = await fetch("backend/email_sender.php", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(emailData)
-    });
-
-    if (response.ok) {
-        console.log("Email sent successfully.");
-    } else {
-        console.error("Failed to send email.");
     }
 }
 
