@@ -255,179 +255,182 @@ if (!$existingBudgetQuery->execute()) {
 
     // Submit Budget
     async function submitBudget() {
-        try {
-            // Fetch letterhead image
-            const letterheadImage = await fetch("assets/images/letterhead.gif")
-                .then(res => res.ok ? res.blob() : null)
-                .then(blob => {
-                    if (blob) {
-                        return new Promise(resolve => {
-                            const reader = new FileReader();
-                            reader.onloadend = () => resolve(reader.result);
-                            reader.readAsDataURL(blob);
-                        });
-                    }
-                    return null;
-                })
-                .catch(() => null);
-
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF();
-
-            // Fetch department name from session
-            const departmentName = "<?php echo isset($_SESSION['department']) ? htmlspecialchars($_SESSION['department']) : 'Department'; ?>";
-
-            // Validate department name
-            if (!departmentName || departmentName.trim() === "") {
-                alert("Invalid department name. Please check your session settings.");
-                return;
-            }
-
-            // PDF Header
-            if (letterheadImage) {
-                pdf.addImage(letterheadImage, "GIF", 10, 10, 190, 30);
-            }
-
-            const currentYear = new Date().getFullYear();
-            pdf.setFontSize(16);
-            pdf.text(`${departmentName} Budget for the Year ${currentYear}`, 10, 50);
-
-            const date = new Date().toLocaleDateString();
-            pdf.setFontSize(10);
-            pdf.text(`Date: ${date}`, 10, 60);
-
-            const eventGroups = [];
-            let validationError = false;
-
-            // Collect events data
-            $('#eventsTableBody .event-header-row').each(function () {
-                const eventId = $(this).data('event-id');
-                const eventName = $(this).find('.event-name').val() || "Unnamed Event";
-                const attendees = $(this).find('.event-attendees').val();
-
-                if (isNaN(attendees) || parseInt(attendees) < 0) {
-                    alert(`Invalid attendee count for event: ${eventName}`);
-                    validationError = true;
-                    return false;
+    try {
+        // Fetch letterhead image
+        const letterheadImage = await fetch("assets/images/letterhead.gif")
+            .then(res => res.ok ? res.blob() : null)
+            .then(blob => {
+                if (blob) {
+                    return new Promise(resolve => {
+                        const reader = new FileReader();
+                        reader.onloadend = () => resolve(reader.result);
+                        reader.readAsDataURL(blob);
+                    });
                 }
+                return null;
+            })
+            .catch(() => null);
 
-                const items = [];
-                $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
-                    const itemName = $(this).find('.item-name').val() || "Unnamed Item";
-                    const quantity = $(this).find('.item-quantity').val();
-                    const cost = $(this).find('.item-cost').val();
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF();
 
-                    if (isNaN(quantity) || parseInt(quantity) < 0) {
-                        alert(`Invalid quantity for item: ${itemName} in event: ${eventName}`);
-                        validationError = true;
-                        return false;
-                    }
-                    if (isNaN(cost) || parseFloat(cost) < 0) {
-                        alert(`Invalid cost for item: ${itemName} in event: ${eventName}`);
-                        validationError = true;
-                        return false;
-                    }
+        // Fetch department name from session
+        const departmentName = "<?php echo isset($_SESSION['department']) ? htmlspecialchars($_SESSION['department']) : 'Department'; ?>";
 
-                    const total = parseFloat($(this).find('.item-total').text()) || 0.0;
-                    items.push({ item_name: itemName, quantity: parseInt(quantity), cost_per_item: parseFloat(cost), total_cost: total });
-                });
+        // Validate department name
+        if (!departmentName || departmentName.trim() === "") {
+            alert("Invalid department name. Please check your session settings.");
+            return;
+        }
 
-                const subtotal = items.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
+        // PDF Header
+        if (letterheadImage) {
+            pdf.addImage(letterheadImage, "GIF", 10, 10, 190, 30);
+        }
 
-                eventGroups.push({
-                    event_name: eventName,
-                    attendees: parseInt(attendees),
-                    items,
-                    subtotal: parseFloat(subtotal)
-                });
-            });
+        const currentYear = new Date().getFullYear();
+        pdf.setFontSize(16);
+        pdf.text(`${departmentName} Budget for the Year ${currentYear}`, 10, 50);
 
-            if (validationError) return;
+        const date = new Date().toLocaleDateString();
+        pdf.setFontSize(10);
+        pdf.text(`Date: ${date}`, 10, 60);
 
-            const assetsData = [];
-            $('#assetsTableBody .asset-item-row').each(function () {
-                const itemName = $(this).find('input').eq(0).val() || "Unnamed Asset";
-                const quantity = $(this).find('.asset-quantity').val();
-                const cost = $(this).find('.asset-cost').val();
+        const eventGroups = [];
+        let validationError = false;
+
+        // Collect events data
+        $('#eventsTableBody .event-header-row').each(function () {
+            const eventId = $(this).data('event-id');
+            const eventName = $(this).find('.event-name').val() || "Unnamed Event";
+            const attendees = $(this).find('.event-attendees').val();
+
+            if (isNaN(attendees) || parseInt(attendees) < 0) {
+                alert(`Invalid attendee count for event: ${eventName}`);
+                validationError = true;
+                return false;
+            }
+
+            const items = [];
+            $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
+                const itemName = $(this).find('.item-name').val() || "Unnamed Item";
+                const quantity = $(this).find('.item-quantity').val();
+                const cost = $(this).find('.item-cost').val();
 
                 if (isNaN(quantity) || parseInt(quantity) < 0) {
-                    alert(`Invalid quantity for asset: ${itemName}`);
+                    alert(`Invalid quantity for item: ${itemName} in event: ${eventName}`);
                     validationError = true;
                     return false;
                 }
                 if (isNaN(cost) || parseFloat(cost) < 0) {
-                    alert(`Invalid cost for asset: ${itemName}`);
+                    alert(`Invalid cost for item: ${itemName} in event: ${eventName}`);
                     validationError = true;
                     return false;
                 }
 
-                const total = parseFloat($(this).find('.asset-total').text()) || 0.0;
-                assetsData.push({ item_name: itemName, quantity: parseInt(quantity), cost_per_item: parseFloat(cost), total_cost: total });
+                const total = parseFloat($(this).find('.item-total').text()) || 0.0;
+                items.push({ item_name: itemName, quantity: parseInt(quantity), cost_per_item: parseFloat(cost), total_cost: total });
             });
 
-            if (validationError) return;
+            const subtotal = items.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
 
-            const assetSubtotal = assetsData.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
+            eventGroups.push({
+                event_name: eventName,
+                attendees: parseInt(attendees),
+                items,
+                subtotal: parseFloat(subtotal)
+            });
+        });
 
-            let currentY = 70;
-            let grandTotal = 0;
+        if (validationError) return;
 
-            // Add Events to PDF
-            eventGroups.forEach(event => {
-                pdf.setFontSize(12);
-                pdf.text(`Event: ${event.event_name}`, 10, currentY);
-                pdf.text(`Attendees: ${event.attendees}`, 10, currentY + 7);
+        const assetsData = [];
+        $('#assetsTableBody .asset-item-row').each(function () {
+            const itemName = $(this).find('input').eq(0).val() || "Unnamed Asset";
+            const quantity = $(this).find('.asset-quantity').val();
+            const cost = $(this).find('.asset-cost').val();
 
-                const eventTableData = event.items.map(item => [item.item_name, item.quantity, item.cost_per_item.toFixed(2), item.total_cost.toFixed(2)]);
-                eventTableData.push(["Subtotal", "", "", event.subtotal.toFixed(2)]);
-                grandTotal += parseFloat(event.subtotal);
+            if (isNaN(quantity) || parseInt(quantity) < 0) {
+                alert(`Invalid quantity for asset: ${itemName}`);
+                validationError = true;
+                return false;
+            }
+            if (isNaN(cost) || parseFloat(cost) < 0) {
+                alert(`Invalid cost for asset: ${itemName}`);
+                validationError = true;
+                return false;
+            }
 
-                pdf.autoTable({
-                    startY: currentY + 10,
-                    head: [["Item Name", "Quantity", "Cost per Item", "Total"]],
-                    body: eventTableData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [128, 0, 0] },
-                    bodyStyles: { textColor: [0, 0, 0] },
-                    alternateRowStyles: { fillColor: [245, 245, 245] },
-                });
+            const total = parseFloat($(this).find('.asset-total').text()) || 0.0;
+            assetsData.push({ item_name: itemName, quantity: parseInt(quantity), cost_per_item: parseFloat(cost), total_cost: total });
+        });
 
-                currentY = pdf.lastAutoTable.finalY + 10;
+        if (validationError) return;
+
+        const assetSubtotal = assetsData.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
+
+        let currentY = 70;
+        let grandTotal = 0;
+
+        // Add Events to PDF
+        eventGroups.forEach(event => {
+            pdf.setFontSize(12);
+            pdf.text(`Event: ${event.event_name}`, 10, currentY);
+            pdf.text(`Attendees: ${event.attendees}`, 10, currentY + 7);
+
+            const eventTableData = event.items.map(item => [item.item_name, item.quantity, item.cost_per_item.toFixed(2), item.total_cost.toFixed(2)]);
+            eventTableData.push(["Subtotal", "", "", event.subtotal.toFixed(2)]);
+            grandTotal += parseFloat(event.subtotal);
+
+            pdf.autoTable({
+                startY: currentY + 10,
+                head: [["Item Name", "Quantity", "Cost per Item", "Total"]],
+                body: eventTableData,
+                theme: 'grid',
+                headStyles: { fillColor: [128, 0, 0] },
+                bodyStyles: { textColor: [0, 0, 0] },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
             });
 
-            // Grand Total
-            pdf.setFontSize(14);
-            pdf.text(`Grand Total: KES ${grandTotal.toFixed(2)}`, 10, currentY + 10);
+            currentY = pdf.lastAutoTable.finalY + 10;
+        });
 
-            // Save and Prepare Email
-            const pdfData = pdf.output("blob");
-            const formData = new FormData();
-            formData.append("pdf", pdfData);
-            formData.append("department_name", departmentName);
-            formData.append("year", currentYear);
-            formData.append("date", new Date().toISOString());
-            formData.append("email", "<?php echo htmlspecialchars($_SESSION['email']); ?>");
+        // Grand Total
+        pdf.setFontSize(14);
+        pdf.text(`Grand Total: KES ${grandTotal.toFixed(2)}`, 10, currentY + 10);
 
-            // Send PDF via Email
-            fetch("sendtomail.php", {
-                method: "POST",
-                body: formData
-            }).then(response => {
-                if (response.ok) {
-                    alert("Budget PDF submitted and emailed successfully!");
-                    window.location.href = "dashboard";
-                } else {
-                    alert("Error: Could not send the email. Please try again.");
-                }
-            }).catch(error => {
-                console.error("Error:", error);
+        // Save the PDF
+        pdf.save(`${departmentName}_Budget_${currentYear}.pdf`);
+
+        // Send PDF to Backend for Email
+        const pdfData = pdf.output("blob");
+        const formData = new FormData();
+        formData.append("pdf", pdfData);
+        formData.append("department_name", departmentName);
+        formData.append("year", currentYear);
+        formData.append("date", new Date().toISOString());
+        formData.append("email", "<?php echo htmlspecialchars($_SESSION['email']); ?>");
+
+        // Send PDF via Email
+        fetch("sendtomail.php", {
+            method: "POST",
+            body: formData
+        }).then(response => {
+            if (response.ok) {
+                alert("Budget PDF submitted and emailed successfully!");
+                window.location.href = "dashboard";
+            } else {
                 alert("Error: Could not send the email. Please try again.");
-            });
-        } catch (error) {
-            console.error("Error creating the PDF:", error);
-            alert("Error: Could not generate the PDF. Please try again.");
-        }
+            }
+        }).catch(error => {
+            console.error("Error:", error);
+            alert("Error: Could not send the email. Please try again.");
+        });
+    } catch (error) {
+        console.error("Error creating the PDF:", error);
+        alert("Error: Could not generate the PDF. Please try again.");
     }
+}
 </script>
 
 </body>
