@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
         // Update the user's password in the database
-        $updatePasswordQuery = "UPDATE user SET password = ? WHERE email = ?";
+        $updatePasswordQuery = "UPDATE users SET password = ? WHERE email = ?";
         $stmtUpdatePassword = $conn->prepare($updatePasswordQuery);
         
         if ($stmtUpdatePassword) {

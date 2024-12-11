@@ -30,7 +30,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         $_SESSION['toast_message'] = "No user found with that email.";
     }
 
-    header("Location: forgot_password.php");
+    header("Location: forgotten.php"); // Redirect to show alert after form submission
     exit();
 }
 
