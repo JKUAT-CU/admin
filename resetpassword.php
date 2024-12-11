@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($stmtCheckToken->num_rows === 0) {
             $_SESSION['error'] = "Invalid token";
-            header("Location: pages/reset.php?token=$token");
+            header("Location: reset.php?token=$token");
             exit();
         }
 
