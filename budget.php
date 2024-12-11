@@ -410,6 +410,12 @@ if (!$existingBudgetQuery->execute()) {
         formData.append("year", currentYear);
         formData.append("date", new Date().toISOString());
         formData.append("email", "<?php echo htmlspecialchars($_SESSION['email']); ?>");
+        
+        const response = await fetch("backend/budget_submission.php", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
 
         // Send PDF via Email
         fetch("sendtomail.php", {
