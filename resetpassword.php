@@ -1,18 +1,9 @@
 <?php
 session_start();
-
-// Database credentials
-$servername = "localhost";
-$username = "jkuatcu_daraja";
-$password = "K@^;daY0*j(n";
-$database = "jkuatcu_daraja";
-
-// Create connection
-$conn = new mysqli($servername, $username, $password, $database);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+include 'backend/db.php';
+// Check database connection
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -20,17 +11,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $confirmPassword = $_POST['confirm_password'] ?? '';
     $token = $_POST['token'] ?? '';
 
-    // Validate password and confirm password
+    // Validate passwords
     if ($password !== $confirmPassword) {
         $_SESSION['error'] = "Passwords do not match";
-        header("Location: pages/reset.php?token=$token");
+        header("Location: preset.php?token=$token");
         exit();
     }
 
-    // Check if token exists in the database and is valid
+    // Check token validity
     $checkTokenQuery = "SELECT email, used, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed FROM password_reset WHERE token = ?";
-    $stmtCheckToken = $conn->prepare($checkTokenQuery);
-    
+    $stmtCheckToken = $mysqli->prepare($checkTokenQuery);
+
     if ($stmtCheckToken) {
         $stmtCheckToken->bind_param("s", $token);
         $stmtCheckToken->execute();
@@ -46,54 +37,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmtCheckToken->fetch();
         $stmtCheckToken->close();
 
-        // // Check if token has expired or already been used
-        // if ($used || $minutesPassed > 60) { // Token is marked as used or more than 60 minutes (1 hour) have passed
-        //     $_SESSION['error'] = "Token has expired or already been used";
-        //     header("Location: pages/reset.php?token=$token");
-        //     exit();
-        // }
+        // Check if token is used or expired
+        if ($used || $minutesPassed > 60) {
+            $_SESSION['error'] = "Token has expired or already been used";
+            header("Location: reset.php?token=$token");
+            exit();
+        }
 
         // Hash the password
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        // Update the user's password in the database
+        // Update user's password
         $updatePasswordQuery = "UPDATE users SET password = ? WHERE email = ?";
-        $stmtUpdatePassword = $conn->prepare($updatePasswordQuery);
-        
+        $stmtUpdatePassword = $mysqli->prepare($updatePasswordQuery);
+
         if ($stmtUpdatePassword) {
             $stmtUpdatePassword->bind_param("ss", $hashedPassword, $email);
             $stmtUpdatePassword->execute();
 
             if ($stmtUpdatePassword->affected_rows === 1) {
-                // Mark the token as used
+                // Mark token as used
                 $markTokenUsedQuery = "UPDATE password_reset SET used = TRUE WHERE token = ?";
-                $stmtMarkTokenUsed = $conn->prepare($markTokenUsedQuery);
-                $stmtMarkTokenUsed->bind_param("s", $token);
-                $stmtMarkTokenUsed->execute();
-                $stmtMarkTokenUsed->close();
+                $stmtMarkTokenUsed = $mysqli->prepare($markTokenUsedQuery);
 
-                // Password updated successfully
+                if ($stmtMarkTokenUsed) {
+                    $stmtMarkTokenUsed->bind_param("s", $token);
+                    $stmtMarkTokenUsed->execute();
+                    $stmtMarkTokenUsed->close();
+                }
+
+                // Password reset successful
                 $_SESSION['success'] = "Password reset successful. You can now login with your new password.";
                 header("Location: login.php");
                 exit();
             } else {
-                $_SESSION['error'] = "Failed to update password";
+                $_SESSION['error'] = "Failed to update password.";
                 header("Location: reset.php?token=$token");
                 exit();
             }
         } else {
-            $_SESSION['error'] = "Failed to prepare statement for updating password: " . $conn->error;
+            $_SESSION['error'] = "Failed to prepare statement for updating password: " . $mysqli->error;
             header("Location: reset.php?token=$token");
             exit();
         }
     } else {
-        $_SESSION['error'] = "Failed to prepare statement for checking token: " . $conn->error;
+        $_SESSION['error'] = "Failed to prepare statement for checking token: " . $mysqli->error;
         header("Location: reset.php?token=$token");
         exit();
     }
 } else {
-    $_SESSION['error'] = "Invalid request method";
+    $_SESSION['error'] = "Invalid request method.";
     header("Location: reset.php");
     exit();
 }
+
 ?>

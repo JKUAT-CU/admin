@@ -7,19 +7,11 @@ use PHPMailer\PHPMailer\Exception;
 
 // Load Composer's autoloader
 require 'vendor/autoload.php';
+include 'backend/db.php';
 
-// Database credentials
-$servername = "localhost";
-$username = "jkuatcu_daraja";
-$password = "K@^;daY0*j(n";
-$database = "jkuatcu_daraja";
-
-// Create connection
-$conn = new mysqli($servername, $username, $password, $database);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// Check database connection
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
 }
 
 // Check if the request method is POST
@@ -76,16 +68,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $mail->send();
 
         $_SESSION['success'] = "Budget submitted and emailed successfully.";
-        header("Location: submit_budget.php");
+        header("Location: index.php");
         exit();
     } catch (Exception $e) {
         $_SESSION['error'] = "Failed to send email. Error: {$mail->ErrorInfo}";
-        header("Location: submit_budget.php");
+        header("Location: budget.php");
         exit();
     }
 } else {
     $_SESSION['error'] = "Invalid request method";
-    header("Location: submit_budget.php");
+    header("Location: budget.php");
     exit();
 }
 ?>

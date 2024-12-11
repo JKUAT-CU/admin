@@ -1,26 +1,20 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 session_start(); // Start the session
 
-//Import PHPMailer classes into the global namespace
-//These must be at the top of your script, not inside a function
+// Import PHPMailer classes into the global namespace
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-//Load Composer's autoloader
+// Load Composer's autoloader
 require 'vendor/autoload.php';
+include 'backend/db.php';
 
-// Database credentials
-$servername = "localhost";
-$username = "jkuatcu_daraja";
-$password = "K@^;daY0*j(n";
-$database = "jkuatcu_daraja";
-
-// Create connection
-$conn = new mysqli($servername, $username, $password, $database);
-
-// Check connection
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+// Check the connection
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
 }
 
 // Check if the request method is POST
@@ -40,24 +34,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Store the token in the database along with the email and timestamp
     $timestamp = date('Y-m-d H:i:s');
-    $insertTokenQuery = "INSERT INTO password_reset (email, token, created_at) VALUES (?, ?, ?)";
-    $stmtInsertToken = $conn->prepare($insertTokenQuery);
-    $stmtInsertToken->bind_param("sss", $email, $token, $timestamp);
-    $stmtInsertToken->execute();
-    $stmtInsertToken->close();
+    $insertTokenQuery = "INSERT INTO password_resets (email, token, created_at) VALUES (?, ?, ?)";
+    $stmtInsertToken = $mysqli->prepare($insertTokenQuery);
+    if ($stmtInsertToken) {
+        $stmtInsertToken->bind_param("sss", $email, $token, $timestamp);
+        $stmtInsertToken->execute();
+        $stmtInsertToken->close();
+    } else {
+        $_SESSION['error'] = "Failed to store token in the database.";
+        header("Location: forgot.php");
+        exit();
+    }
 
     // Create a PHPMailer instance
     $mail = new PHPMailer(true);
 
     try {
-        //Server settings
-        $mail->isSMTP();                                            //Send using SMTP
-        $mail->Host       = 'mail.jkuatcu.org';                     //Set the SMTP server to send through
-        $mail->SMTPAuth   = true;                                   //Enable SMTP authentication
-        $mail->Username   = 'reset@jkuatcu.org';                    //SMTP username
-        $mail->Password   = '8&+cqTnOa!A5';                         //SMTP password
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            //Enable implicit TLS encryption
-        $mail->Port       = 465;                                    //TCP port to connect to
+        // Server settings
+        $mail->isSMTP();                                            // Send using SMTP
+        $mail->Host       = 'mail.jkuatcu.org';                     // Set the SMTP server to send through
+        $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
+        $mail->Username   = 'reset@jkuatcu.org';                    // SMTP username
+        $mail->Password   = '8&+cqTnOa!A5';                         // SMTP password
+        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
+        $mail->Port       = 465;                                    // TCP port to connect to
 
         // Sender and recipient
         $mail->setFrom('reset@jkuatcu.org', 'JKUATCU');
