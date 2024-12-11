@@ -421,12 +421,15 @@ if (!$existingBudgetQuery->execute()) {
             throw new Error("Could not send the email. Please try again.");
         }
 
-        // Send data to backend for submission
+        // Submit data to backend
         const payload = {
             department_name: departmentName,
-            year: currentYear,
-            email: "<?php echo htmlspecialchars($_SESSION['email']); ?>",
+            date,
+            events: eventGroups,
+            assets: assetsData,
+            grand_total: grandTotal.toFixed(2)
         };
+
 
         const backendResponse = await fetch("backend/budget_submission.php", {
             method: "POST",
