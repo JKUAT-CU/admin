@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // Validate token
-    $checkTokenQuery = "SELECT email, used, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed FROM password_resets WHERE token = ?";
+    $checkTokenQuery = "SELECT email, TIMESTAMPDIFF(MINUTE, created_at, NOW()) AS minutes_passed FROM password_resets WHERE token = ?";
     $stmtCheckToken = $mysqli->prepare($checkTokenQuery);
     if ($stmtCheckToken) {
         $stmtCheckToken->bind_param("s", $token);
@@ -28,12 +28,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit();
         }
 
-        $stmtCheckToken->bind_result($email, $used, $minutesPassed);
+        $stmtCheckToken->bind_result($email, $minutesPassed);
         $stmtCheckToken->fetch();
         $stmtCheckToken->close();
 
-        if ($used || $minutesPassed > 60) {
-            $_SESSION['error'] = "Token has expired or already been used";
+        // Check if token has expired
+        if ($minutesPassed > 60) {
+            $_SESSION['error'] = "Token has expired";
             header("Location: reset.php?token=$token");
             exit();
         }
@@ -47,12 +48,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtUpdatePassword->execute();
 
             if ($stmtUpdatePassword->affected_rows > 0) {
-                $markTokenUsedQuery = "UPDATE password_resets SET used = TRUE WHERE token = ?";
-                $stmtMarkTokenUsed = $mysqli->prepare($markTokenUsedQuery);
-                if ($stmtMarkTokenUsed) {
-                    $stmtMarkTokenUsed->bind_param("s", $token);
-                    $stmtMarkTokenUsed->execute();
-                }
                 $_SESSION['success'] = "Password reset successful. Log in with your new password.";
                 header("Location: login.php");
                 exit();
