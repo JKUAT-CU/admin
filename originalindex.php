@@ -2,6 +2,7 @@
 include('session.php');
 include('templates/header.php');
 include('templates/footer.php');
+include('templates/sidebar.php');
 ?>
 <!DOCTYPE html>
 <html lang="en">

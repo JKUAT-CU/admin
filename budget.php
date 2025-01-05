@@ -125,13 +125,11 @@ if (!$existingBudgetQuery->execute()) {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-
 <script>
     // Add Event Row
     function addEventRow() {
         const eventId = `event-${Date.now()}`;
         const newRow = `
-        <!-- Event Header Row -->
         <tr class="event-header-row" data-event-id="${eventId}">
             <td colspan="2">
                 <input type="text" class="form-control event-name" placeholder="Event Name" required>
@@ -143,18 +141,14 @@ if (!$existingBudgetQuery->execute()) {
                 <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
             </td>
         </tr>
-        <!-- Initial Item Row -->
         <tr class="event-item-row" data-event-id="${eventId}">
             <td colspan="2"></td>
             <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
             <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
             <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
             <td><span class="item-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-            </td>
+            <td><button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button></td>
         </tr>
-        <!-- Event Subtotal Row -->
         <tr class="event-subtotal-row" data-event-id="${eventId}">
             <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
             <td><span class="event-subtotal">0.00</span></td>
@@ -172,9 +166,7 @@ if (!$existingBudgetQuery->execute()) {
             <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
             <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
             <td><span class="item-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button>
-            </td>
+            <td><button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button></td>
         </tr>`;
         $(`tr[data-event-id="${eventId}"].event-subtotal-row`).before(newItemRow);
     }
@@ -187,9 +179,7 @@ if (!$existingBudgetQuery->execute()) {
             <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
             <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
             <td><span class="asset-total">0.00</span></td>
-            <td>
-                <button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button>
-            </td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button></td>
         </tr>`;
         const subtotalRow = $('#assetsTableBody .asset-subtotal-row');
         if (subtotalRow.length) {
@@ -254,158 +244,114 @@ if (!$existingBudgetQuery->execute()) {
     $(document).on('input', '.item-quantity, .item-cost, .asset-quantity, .asset-cost', updateTotals);
 
     // Submit Budget
-    const payload = {
-            department_name: departmentName,
-            date,
-            events: eventGroups,
-            assets: assetsData,
-            grand_total: grandTotal.toFixed(2)
-        };
-
-    // Submit Budget with Email and Backend Submission
     async function submitBudget() {
-    try {
-        // Fetch letterhead image
-        const letterheadImage = await fetch("assets/images/letterhead.gif")
-            .then(res => res.ok ? res.blob() : null)
-            .then(blob => {
-                if (blob) {
-                    return new Promise(resolve => {
-                        const reader = new FileReader();
-                        reader.onloadend = () => resolve(reader.result);
-                        reader.readAsDataURL(blob);
+        try {
+            const events = [];
+            const assets = [];
+            let validationError = false;
+
+            // Gather Events Data
+            $('#eventsTableBody .event-header-row').each(function () {
+                const eventId = $(this).data('event-id');
+                const eventName = $(this).find('.event-name').val().trim();
+                const attendees = parseInt($(this).find('.event-attendees').val(), 10);
+
+                if (!eventName || attendees < 1) {
+                    alert("Please provide valid event details (name and attendees).");
+                    validationError = true;
+                    return false;
+                }
+
+                const items = [];
+                $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
+                    const itemName = $(this).find('.item-name').val().trim();
+                    const quantity = parseInt($(this).find('.item-quantity').val(), 10);
+                    const costPerItem = parseFloat($(this).find('.item-cost').val());
+
+                    if (!itemName || quantity < 1 || costPerItem < 0) {
+                        alert(`Please provide valid item details for "${eventName}".`);
+                        validationError = true;
+                        return false;
+                    }
+
+                    items.push({
+                        item_name: itemName,
+                        quantity,
+                        cost_per_item: costPerItem,
+                        total_cost: quantity * costPerItem
                     });
-                }
-                return null;
-            })
-            .catch(() => null);
+                });
 
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF();
+                if (validationError) return false;
 
-        // Fetch department name from session
-        const departmentName = "<?php echo isset($_SESSION['department']) ? htmlspecialchars($_SESSION['department']) : 'Department'; ?>";
+                const eventSubtotal = items.reduce((sum, item) => sum + item.total_cost, 0);
 
-        // Validate department name
-        if (!departmentName || departmentName.trim() === "") {
-            alert("Invalid department name. Please check your session settings.");
-            return;
-        }
+                events.push({
+                    event_name: eventName,
+                    attendees,
+                    items,
+                    subtotal: eventSubtotal
+                });
+            });
 
-        const currentYear = new Date().getFullYear();
-        const date = new Date().toLocaleDateString();
-        const eventGroups = [];
-        let validationError = false;
+            if (validationError) return;
 
-        // Collect events data
-        $('#eventsTableBody .event-header-row').each(function () {
-            const eventId = $(this).data('event-id');
-            const eventName = $(this).find('.event-name').val() || "Unnamed Event";
-            const attendees = $(this).find('.event-attendees').val();
+            // Gather Assets Data
+            $('#assetsTableBody .asset-item-row').each(function () {
+                const itemName = $(this).find('input').eq(0).val().trim();
+                const quantity = parseInt($(this).find('.asset-quantity').val(), 10);
+                const costPerItem = parseFloat($(this).find('.asset-cost').val());
 
-            if (isNaN(attendees) || parseInt(attendees) < 0) {
-                alert(`Invalid attendee count for event: ${eventName}`);
-                validationError = true;
-                return false;
-            }
-
-            const items = [];
-            $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
-                const itemName = $(this).find('.item-name').val() || "Unnamed Item";
-                const quantity = $(this).find('.item-quantity').val();
-                const cost = $(this).find('.item-cost').val();
-
-                if (isNaN(quantity) || parseInt(quantity) < 0) {
-                    alert(`Invalid quantity for item: ${itemName} in event: ${eventName}`);
-                    validationError = true;
-                    return false;
-                }
-                if (isNaN(cost) || parseFloat(cost) < 0) {
-                    alert(`Invalid cost for item: ${itemName} in event: ${eventName}`);
+                if (!itemName || quantity < 1 || costPerItem < 0) {
+                    alert("Please provide valid asset details.");
                     validationError = true;
                     return false;
                 }
 
-                const total = parseFloat($(this).find('.item-total').text()) || 0.0;
-                items.push({ item_name: itemName, quantity: parseInt(quantity), cost_per_item: parseFloat(cost), total_cost: total });
+                assets.push({
+                    item_name: itemName,
+                    quantity,
+                    cost_per_item: costPerItem,
+                    total_cost: quantity * costPerItem
+                });
             });
 
-            const subtotal = items.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
+            if (validationError) return;
 
-            eventGroups.push({
-                event_name: eventName,
-                attendees: parseInt(attendees),
-                items,
-                subtotal: parseFloat(subtotal)
+            const eventsSubtotal = events.reduce((sum, event) => sum + event.subtotal, 0);
+            const assetsSubtotal = assets.reduce((sum, asset) => sum + asset.total_cost, 0);
+            const grandTotal = eventsSubtotal + assetsSubtotal;
+
+            const payload = {
+                department_name: "<?php echo isset($_SESSION['department']) ? htmlspecialchars($_SESSION['department']) : ''; ?>",
+                date: new Date().toISOString().split('T')[0],
+                events,
+                assets,
+                grand_total: grandTotal
+            };
+
+            const response = await fetch('backend.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
-        });
 
-        if (validationError) return;
-
-        const assetsData = [];
-        $('#assetsTableBody .asset-item-row').each(function () {
-            const itemName = $(this).find('input').eq(0).val() || "Unnamed Asset";
-            const quantity = $(this).find('.asset-quantity').val();
-            const cost = $(this).find('.asset-cost').val();
-
-            if (isNaN(quantity) || parseInt(quantity) < 0) {
-                alert(`Invalid quantity for asset: ${itemName}`);
-                validationError = true;
-                return false;
-            }
-            if (isNaN(cost) || parseFloat(cost) < 0) {
-                alert(`Invalid cost for asset: ${itemName}`);
-                validationError = true;
-                return false;
+            if (!response.ok) {
+                const errorData = await response.json();
+                alert(`Error: ${errorData.error}`);
+                return;
             }
 
-            const total = parseFloat($(this).find('.asset-total').text()) || 0.0;
-            assetsData.push({ item_name: itemName, quantity: parseInt(quantity), cost_per_item: parseFloat(cost), total_cost: total });
-        });
-
-        if (validationError) return;
-
-        const assetSubtotal = assetsData.reduce((sum, item) => sum + item.total_cost, 0).toFixed(2);
-        let grandTotal = parseFloat(assetSubtotal);
-
-        // Calculate Grand Total from Events
-        eventGroups.forEach(event => {
-            grandTotal += parseFloat(event.subtotal);
-        });
-
-        // Define payload
-        const payload = {
-            department_name: departmentName,
-            date,
-            events: eventGroups,
-            assets: assetsData,
-            grand_total: grandTotal.toFixed(2)
-        };
-
-        // Save PDF
-        pdf.save(`${departmentName}_Budget_for_${currentYear}.pdf`);
-
-        // Submit data to backend
-        const response = await fetch("backend/budget_submission.php", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (response.ok) {
-            await sendEmail(payload); // Email the budget data
-            alert("Budget submitted successfully!");
-        } else {
-            alert("Failed to submit budget. Please try again.");
+            const responseData = await response.json();
+            alert('Budget submitted successfully!');
+            console.log(responseData); 
+        } catch (error) {
+            console.error('Submission failed:', error);
+            alert('An unexpected error occurred. Please try again.');
         }
-
-    } catch (error) {
-        console.error("Error submitting budget:", error);
-        alert("An unexpected error occurred. Please try again.");
     }
-}
+</script>
 
-   </script>
 
 </body>
 </html>
