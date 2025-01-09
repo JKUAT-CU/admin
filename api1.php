@@ -4,9 +4,9 @@ ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 // Database connection details
 $host = 'localhost';
-$user = 'portals';
-$password = 'I&Y*U&^(JN&Y Kjbkjn'; // Ensure this is the correct password
-$database = "jkuatcu_daraja"; // Replace with your database name
+$user = 'jkuatcu_devs';
+$password = '#God@isAble!#'; // Ensure this is the correct password
+$database = "jkuatcu_admin"; // Replace with your database name
 
 // Create a connection
 $conn = new mysqli($host, $user, $password, $database);
