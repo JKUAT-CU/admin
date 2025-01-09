@@ -9,7 +9,7 @@ header('Content-Type: application/json');
 
 // Fetch data from makueni table
 $sqlMakueni = "SELECT member_id, account_number FROM makueni";
-$resultMakueni = $mysqli->query($sqlMakueni); // Use $mysqli here
+$resultMakueni = $mysqli->query($sqlMakueni);
 
 if ($resultMakueni->num_rows > 0) {
     $response = [];
@@ -18,11 +18,12 @@ if ($resultMakueni->num_rows > 0) {
         $memberId = $makueniRow['member_id'];
         $accountNumber = $makueniRow['account_number'];
 
+        // Convert account_number to lowercase (or uppercase) for case-insensitive comparison
         $accountNumberLower = strtolower($accountNumber);
 
         // Fetch user details from users table
         $sqlUser = "SELECT first_name, surname FROM cu_members WHERE id = $memberId";
-        $resultUser = $mysqli->query($sqlUser); // Use $mysqli here
+        $resultUser = $conn->query($sqlUser);
 
         if ($resultUser->num_rows > 0) {
             $userRow = $resultUser->fetch_assoc();
@@ -33,11 +34,18 @@ if ($resultMakueni->num_rows > 0) {
             $apiUrl = "http://localhost/admin/api?account_number=" . urlencode($accountNumberLower);
             $transactionData = file_get_contents($apiUrl);
 
-            $totalAmount = 0;
-            if ($transactionData !== FALSE) {
+            // If file_get_contents() fails, handle error
+            if ($transactionData === FALSE) {
+                $totalAmount = 0;
+            } else {
                 $transactionArray = json_decode($transactionData, true);
+                $totalAmount = 0;
+
+                // Loop through the API response and sum up TransAmount where BillRefNumber matches account_number
                 foreach ($transactionArray as $transaction) {
+                    // Convert BillRefNumber to lowercase for case-insensitive comparison
                     if (strtolower($transaction['BillRefNumber']) === $accountNumberLower) {
+                        // Sum the TransAmount values
                         $totalAmount += (float) $transaction['TransAmount'];
                     }
                 }
@@ -58,5 +66,5 @@ if ($resultMakueni->num_rows > 0) {
     echo json_encode(['message' => 'No data found in makueni table']);
 }
 
-$mysqli->close(); // Use $mysqli here
+$conn->close();
 ?>
