@@ -5,11 +5,20 @@ error_reporting(E_ALL);
 
 require 'backend/db.php';
 
+// Check database connection
+if (!$mysqli) {
+    die(json_encode(['message' => 'Database connection failed.']));
+}
+
 header('Content-Type: application/json');
 
 // Fetch data from makueni table
 $sqlMakueni = "SELECT member_id, account_number FROM makueni";
 $resultMakueni = $mysqli->query($sqlMakueni);
+
+if (!$resultMakueni) {
+    die(json_encode(['message' => 'Query failed: ' . $mysqli->error]));
+}
 
 if ($resultMakueni->num_rows > 0) {
     $response = [];
@@ -17,36 +26,27 @@ if ($resultMakueni->num_rows > 0) {
     while ($makueniRow = $resultMakueni->fetch_assoc()) {
         $memberId = $makueniRow['member_id'];
         $accountNumber = $makueniRow['account_number'];
-
-        // Convert account_number to lowercase (or uppercase) for case-insensitive comparison
         $accountNumberLower = strtolower($accountNumber);
 
-        // Fetch user details from users table
+        // Fetch user details from cu_members table
         $sqlUser = "SELECT first_name, surname FROM cu_members WHERE id = $memberId";
         $resultUser = $mysqli->query($sqlUser);
 
-        if ($resultUser->num_rows > 0) {
+        if ($resultUser && $resultUser->num_rows > 0) {
             $userRow = $resultUser->fetch_assoc();
             $firstName = $userRow['first_name'];
             $lastName = $userRow['surname'];
 
             // Fetch transaction data via API endpoint
             $apiUrl = "http://localhost/admin/api?account_number=" . urlencode($accountNumberLower);
-            $transactionData = file_get_contents($apiUrl);
+            $transactionData = @file_get_contents($apiUrl);
 
-            // If file_get_contents() fails, handle error
-            if ($transactionData === FALSE) {
-                $totalAmount = 0;
-            } else {
+            $totalAmount = 0;
+            if ($transactionData !== FALSE) {
                 $transactionArray = json_decode($transactionData, true);
-                $totalAmount = 0;
-
-                // Loop through the API response and sum up TransAmount where BillRefNumber matches account_number
                 foreach ($transactionArray as $transaction) {
-                    // Convert BillRefNumber to lowercase for case-insensitive comparison
                     if (strtolower($transaction['BillRefNumber']) === $accountNumberLower) {
-                        // Sum the TransAmount values
-                        $totalAmount += (float) $transaction['TransAmount'];
+                        $totalAmount += (float)$transaction['TransAmount'];
                     }
                 }
             }
