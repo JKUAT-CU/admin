@@ -9,15 +9,6 @@ $user = 'jkuatcu_devs';
 $password = '#God@isAble!#';  // Ensure this is the correct password
 $database = 'jkuatcu_data';
 
-// // Create connection
-// $mysqli = new mysqli($host, $user, $password, $database);
-
-// // // Database connection
-// $host = 'localhost';
-// $user = 'portals';
-// $password = 'I&Y*U&^(JN&Y Kjbkjn'; // Ensure this is the correct password
-// $database = 'admin';
-
 // Create connection
 $mysqli = new mysqli($host, $user, $password, $database);
 
@@ -29,11 +20,16 @@ if (!$mysqli) {
 header('Content-Type: application/json');
 
 // Set CORS policy for missions.jkuatcu.org
-
 header('Access-Control-Allow-Origin: https://mission.jkuatcu.org');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
+// Define mapping for account numbers
+$accountMapping = [
+    'mm001' => 'Carwash',
+    'mm002' => 'Sales',
+    'mm003' => 'Fundraiser',
+];
 
 // Fetch data from makueni table
 $sqlMakueni = "SELECT member_id, account_number FROM makueni";
@@ -50,6 +46,9 @@ if ($resultMakueni->num_rows > 0) {
         $memberId = $makueniRow['member_id'];
         $accountNumber = $makueniRow['account_number'];
         $accountNumberLower = strtolower($accountNumber);
+
+        // Check if account number exists in mapping and replace it with the corresponding name
+        $accountName = isset($accountMapping[$accountNumberLower]) ? $accountMapping[$accountNumberLower] : $accountNumber;
 
         // Fetch user details from cu_members table
         $sqlUser = "SELECT first_name, surname FROM cu_members WHERE id = $memberId";
@@ -74,9 +73,10 @@ if ($resultMakueni->num_rows > 0) {
                 }
             }
 
+            // Add the response with the mapped account name
             $response[] = [
                 'member_id' => $memberId,
-                'account_number' => $accountNumber,
+                'account_number' => $accountName, // Use the custom name here
                 'first_name' => $firstName,
                 'last_name' => $lastName,
                 'total_amount' => $totalAmount
