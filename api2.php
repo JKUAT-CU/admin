@@ -23,7 +23,7 @@ if ($resultMakueni->num_rows > 0) {
 
         // Fetch user details from users table
         $sqlUser = "SELECT first_name, surname FROM cu_members WHERE id = $memberId";
-        $resultUser = $conn->query($sqlUser);
+        $resultUser = $mysqli->query($sqlUser);
 
         if ($resultUser->num_rows > 0) {
             $userRow = $resultUser->fetch_assoc();
@@ -66,5 +66,5 @@ if ($resultMakueni->num_rows > 0) {
     echo json_encode(['message' => 'No data found in makueni table']);
 }
 
-$conn->close();
+$mysqli->close();
 ?>
