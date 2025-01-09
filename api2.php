@@ -3,7 +3,23 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-require 'backend/db.php';
+// Database connection
+$host = 'localhost';
+$user = 'jkuatcu_devs';
+$password = '#God@isAble!#';  // Ensure this is the correct password
+$database = 'jkuatcu_data';
+
+// // Create connection
+// $mysqli = new mysqli($host, $user, $password, $database);
+
+// // // Database connection
+// $host = 'localhost';
+// $user = 'portals';
+// $password = 'I&Y*U&^(JN&Y Kjbkjn'; // Ensure this is the correct password
+// $database = 'admin';
+
+// Create connection
+$mysqli = new mysqli($host, $user, $password, $database);
 
 // Check database connection
 if (!$mysqli) {
