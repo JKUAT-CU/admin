@@ -24,7 +24,7 @@ header('Access-Control-Allow-Origin: https://mission.jkuatcu.org');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
-// Define mapping for account numbers
+// Define mapping for account numbers to last names
 $accountMapping = [
     'mm001' => 'Carwash',
     'mm002' => 'Sales',
@@ -47,8 +47,8 @@ if ($resultMakueni->num_rows > 0) {
         $accountNumber = $makueniRow['account_number'];
         $accountNumberLower = strtolower($accountNumber);
 
-        // Check if account number exists in mapping and replace it with the corresponding name
-        $accountName = isset($accountMapping[$accountNumberLower]) ? $accountMapping[$accountNumberLower] : $accountNumber;
+        // Map the account number to its corresponding last name (if available)
+        $lastName = isset($accountMapping[$accountNumberLower]) ? $accountMapping[$accountNumberLower] : null;
 
         // Fetch user details from cu_members table
         $sqlUser = "SELECT first_name, surname FROM cu_members WHERE id = $memberId";
@@ -56,8 +56,16 @@ if ($resultMakueni->num_rows > 0) {
 
         if ($resultUser && $resultUser->num_rows > 0) {
             $userRow = $resultUser->fetch_assoc();
-            $firstName = $userRow['first_name'];
-            $lastName = $userRow['surname'];
+
+            // If the account number matches one of the specified ones, set first_name to "Missions"
+            if (isset($accountMapping[$accountNumberLower])) {
+                $firstName = "Missions"; // For specific account numbers
+            } else {
+                $firstName = $userRow['first_name']; // Retrieve first name from the database
+            }
+
+            // If the account number matches one of the specified ones, use the mapped last name, otherwise use the database value
+            $lastName = $lastName ? $lastName : $userRow['surname']; // Use mapped last name or database value
 
             // Fetch transaction data via API endpoint
             $apiUrl = "https://admin.jkuatcu.org/api1.php?account_number=" . urlencode($accountNumberLower);
@@ -73,12 +81,12 @@ if ($resultMakueni->num_rows > 0) {
                 }
             }
 
-            // Add the response with the mapped account name
+            // Add the response with the updated names
             $response[] = [
                 'member_id' => $memberId,
-                'account_number' => $accountName, // Use the custom name here
-                'first_name' => $firstName,
-                'last_name' => $lastName,
+                'account_number' => $accountNumber, // Keep the original account number
+                'first_name' => $firstName, // Set to "Missions" for specific accounts or fetched from DB
+                'last_name' => $lastName, // Set based on the account number mapping or fetched from DB
                 'total_amount' => $totalAmount
             ];
         }
