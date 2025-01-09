@@ -28,6 +28,13 @@ if (!$mysqli) {
 
 header('Content-Type: application/json');
 
+// Set CORS policy for missions.jkuatcu.org
+// Uncomment the following lines to allow CORS for missions.jkuatcu.org
+// header('Access-Control-Allow-Origin: https://missions.jkuatcu.org');
+// header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+// header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Origin: no-cors');
+
 // Fetch data from makueni table
 $sqlMakueni = "SELECT member_id, account_number FROM makueni";
 $resultMakueni = $mysqli->query($sqlMakueni);
