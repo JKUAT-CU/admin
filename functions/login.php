@@ -1,10 +1,20 @@
 <?php
 require_once 'db.php';
 
+header('Content-Type: application/json');
+
 function handleLogin($input)
 {
     global $mysqli;
 
+    // Validate action
+    if (!isset($input['action']) || $input['action'] !== 'login') {
+        http_response_code(400); // Bad Request
+        echo json_encode(['message' => 'Invalid action']);
+        exit;
+    }
+
+    // Check if email and password are provided
     if (!isset($input['email']) || !isset($input['password'])) {
         http_response_code(400); // Bad Request
         echo json_encode(['message' => 'Email and password are required']);
@@ -14,12 +24,19 @@ function handleLogin($input)
     $email = $mysqli->real_escape_string($input['email']);
     $password = $input['password'];
 
+    // Prepare SQL query
     $query = "SELECT id, password FROM users WHERE email = ?";
     $stmt = $mysqli->prepare($query);
+    if (!$stmt) {
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['message' => 'Database error']);
+        exit;
+    }
     $stmt->bind_param('s', $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
+    // Check if user exists
     if ($result->num_rows === 0) {
         http_response_code(401); // Unauthorized
         echo json_encode(['message' => 'Invalid email or password']);
@@ -27,26 +44,28 @@ function handleLogin($input)
     }
 
     $user = $result->fetch_assoc();
+
+    // Verify password
     if (!password_verify($password, $user['password'])) {
         http_response_code(401); // Unauthorized
         echo json_encode(['message' => 'Invalid email or password']);
         exit;
     }
 
-    // Generate JWT Token
+    // Generate JWT token
     $payload = [
         'id' => $user['id'],
         'email' => $email,
         'iat' => time(),
         'exp' => time() + 3600, // Token valid for 1 hour
     ];
-    $key = 'your_secret_key'; // Replace with a secure key
+    $key = 'hwhnmf-qxklvm-aj9qmn984'; // Replace with a secure key
     $jwt = generateJWT($payload, $key);
 
-    http_response_code(200);
+    http_response_code(200); // OK
     echo json_encode([
         'message' => 'Login successful',
-        'token' => $jwt
+        'token' => $jwt,
     ]);
 }
 
@@ -69,4 +88,13 @@ function base64UrlEncode($data)
     return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
 }
 
+// Handle request
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input) {
+    http_response_code(400); // Bad Request
+    echo json_encode(['message' => 'Invalid JSON payload']);
+    exit;
+}
+
+handleLogin($input);
 ?>
