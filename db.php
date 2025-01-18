@@ -3,19 +3,45 @@ ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// Database connection
-$host = 'localhost';
-$user = 'portals';
-$password = 'I&Y*U&^(JN&Y Kjbkjn'; 
-$database = 'admin';
+require 'vendor/autoload.php';
 
-// Create connection
-$mysqli = new mysqli($host, $user, $password, $database, 3306); // Explicitly specify port 3306
+use Dotenv\Dotenv;
 
-// Check connection
+// Load environment variables from .env file
+$dotenv = Dotenv::createImmutable(__DIR__);
+$dotenv->load();
+
+// Retrieve the database credentials from environment variables
+$host = $_ENV['DB_HOST'] ?? null;
+$user = $_ENV['DB_USER'] ?? null;
+$password = $_ENV['DB_PASS'] ?? null;
+$database = $_ENV['DB_NAME'] ?? null;
+
+// // Debugging: Print database connection details to ensure correct values
+// echo "DB_HOST: " . $host . "<br>";
+// echo "DB_USER: " . $user . "<br>";
+// echo "DB_NAME: " . $database . "<br>";
+
+// Validate that all required variables are loaded
+if (!$host || !$user || !$database) {
+    die("Error: Missing environment variables. Please check your .env file.");
+}
+
+// Establish the MySQL connection
+$mysqli = new mysqli($host, $user, $password, $database);
+
+// Check for any connection errors
 if ($mysqli->connect_error) {
     die("Connection failed: " . $mysqli->connect_error);
-} else {
-    echo "Connected successfully";
 }
+
+// Explicitly select the database
+if (!$mysqli->select_db($database)) {
+    die("Database selection failed: " . $mysqli->error);
+}
+
+echo "Connected successfully to the database!<br>";
+
+// Return the $mysqli object for other scripts to use
+return $mysqli;
 ?>
