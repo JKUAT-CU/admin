@@ -44,7 +44,10 @@ function handleLogin($input)
     $jwt = generateJWT($payload, $key);
 
     http_response_code(200);
-    echo json_encode(['token' => $jwt]);
+    echo json_encode([
+        'message' => 'Login successful',
+        'token' => $jwt
+    ]);
 }
 
 function generateJWT($payload, $key)

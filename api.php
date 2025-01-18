@@ -81,4 +81,5 @@ switch ($action) {
         echo json_encode(['message' => 'Invalid action']);
         break;
 }
+
 ?>
