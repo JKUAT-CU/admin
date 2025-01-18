@@ -28,6 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Autoload dependencies and initialize environment
 require_once 'db.php';
 require_once 'functions/login.php';
+require_once 'functions/budget.php';
 require 'vendor/autoload.php';
 
 use Dotenv\Dotenv;
@@ -56,7 +57,9 @@ switch ($action) {
     case 'login':
         handleLogin($input);
         break;
-
+    case 'submit-budget':
+        handleBudgetSubmission($input);
+        break;
     default:
         http_response_code(400);
         echo json_encode(['message' => 'Invalid action']);
