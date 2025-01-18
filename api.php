@@ -46,11 +46,16 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Validate and handle the action
+// Debugging input
+error_log('Raw input: ' . file_get_contents('php://input'));
+error_log('Parsed input: ' . json_encode($input));
+
 if (!isset($input['action'])) {
     http_response_code(400);
     echo json_encode(['message' => 'Action is required']);
     exit;
 }
+
 
 $action = $input['action'];
 switch ($action) {
