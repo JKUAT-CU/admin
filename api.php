@@ -47,26 +47,97 @@ if (!in_array($_SERVER['REQUEST_METHOD'], $allowed_methods)) {
     exit;
 }
 
-// Validate and route the action
-if ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'PUT') {
-    if (!isset($input['action']) || empty($input['action'])) {
-        http_response_code(400);
-        echo json_encode(['message' => 'Action is required']);
-        exit;
-    }
+// URL path parsing
+$path = trim(parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH), '/');
+$segments = explode('/', $path);
 
-    $action = $input['action'];
-    switch ($action) {
-        case 'login':
+// Routing based on URL and HTTP Method
+switch ($_SERVER['REQUEST_METHOD']) {
+    case 'POST':
+        // Handling login action via POST
+        if (count($segments) === 1 && $segments[0] === 'login') {
             handleLogin($input);
-            break;
-        case 'submit-budget':
+        } elseif (count($segments) === 2 && $segments[0] === 'budget') {
             handleBudgetSubmission($input);
-            break;
-        default:
+        } else {
             http_response_code(400);
-            echo json_encode(['message' => "Invalid action: {$action}"]);
-            break;
-    }
+            echo json_encode(['message' => 'Invalid endpoint for POST request']);
+        }
+        break;
+
+    case 'GET':
+        // Handle retrieving all budgets or a specific budget by ID
+        if (count($segments) === 2 && $segments[0] === 'budgets') {
+            if (isset($segments[1])) {
+                handleGetBudgetById($segments[1]);
+            } else {
+                handleGetAllBudgets();
+            }
+        } else {
+            http_response_code(400);
+            echo json_encode(['message' => 'Invalid endpoint for GET request']);
+        }
+        break;
+
+    case 'PUT':
+        // Handle updating a specific budget
+        if (count($segments) === 3 && $segments[0] === 'budgets') {
+            handleUpdateBudget($segments[1], $input);
+        } else {
+            http_response_code(400);
+            echo json_encode(['message' => 'Invalid endpoint for PUT request']);
+        }
+        break;
+
+    case 'DELETE':
+        // Handle deleting a specific budget
+        if (count($segments) === 3 && $segments[0] === 'budgets') {
+            handleDeleteBudget($segments[1]);
+        } else {
+            http_response_code(400);
+            echo json_encode(['message' => 'Invalid endpoint for DELETE request']);
+        }
+        break;
+
+    default:
+        http_response_code(405);
+        echo json_encode(['message' => 'Method not allowed']);
+        break;
+}
+
+// Function to handle login
+function handleLogin($input) {
+    // Handle the login logic
+    echo json_encode(['message' => 'Login successful']);
+}
+
+// Function to handle budget submission
+function handleBudgetSubmission($input) {
+    // Handle the logic for submitting a budget
+    echo json_encode(['message' => 'Budget submitted']);
+}
+
+// Function to get all budgets
+function handleGetAllBudgets() {
+    // Handle the logic for retrieving all budgets
+    echo json_encode(['message' => 'All budgets retrieved']);
+}
+
+// Function to get a specific budget by ID
+function handleGetBudgetById($id) {
+    // Handle the logic for retrieving a budget by ID
+    echo json_encode(['message' => "Budget with ID {$id} retrieved"]);
+}
+
+// Function to update a budget
+function handleUpdateBudget($id, $input) {
+    // Handle the logic for updating the budget
+    echo json_encode(['message' => "Budget with ID {$id} updated"]);
+}
+
+// Function to delete a budget
+function handleDeleteBudget($id) {
+    // Handle the logic for deleting the budget
+    echo json_encode(['message' => "Budget with ID {$id} deleted"]);
 }
 ?>
