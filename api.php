@@ -2,7 +2,7 @@
 header('Content-Type: application/json');
 
 // Allow only requests from localhost:3000
-header('Access-Control-Allow-Origin: http://localhost:3000');
+header('Access-Control-Allow-Origin: https://v0-admin-vujvowtejgt-8z5cpd3fa-odingoiis-projects.vercel.app');
 header('Access-Control-Allow-Methods: POST, OPTIONS'); // Include OPTIONS method
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
