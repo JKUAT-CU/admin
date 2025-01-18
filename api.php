@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 
 // Allowed origins for CORS
 $allowed_origins = [
-    'https://cuwo2g99qp2tordd.vercel.app'
+    'https://9tt8scax6ffpqqi9.vercel.app'
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
