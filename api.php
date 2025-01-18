@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 
 // Dynamically allow specific origins
 $allowed_origins = [
-    'https://snzzcpyh0dzxwvdj.vercel.app'
+    'https://5ofpvzmb0s3vpubm.vercel.app'
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
@@ -54,9 +54,9 @@ if (!isset($input['action'])) {
 
 $action = $input['action'];
 switch ($action) {
-    // case 'login':
-    //     handleLogin($input);
-    //     break;
+    case 'login':
+        handleLogin($input);
+        break;
     case 'submit-budget':
         handleBudgetSubmission($input);
         break;
