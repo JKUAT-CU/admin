@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 
 // Dynamically allow specific origins
 $allowed_origins = [
-        'https://v0.dev/chat/final-portal-UfXVhMMq6kv',
+    'https://v0.dev/chat/final-portal-UfXVhMMq6kv',
     'https://ctgo69pcu6mm4wjk.vercel.app'
 ];
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
@@ -17,7 +17,7 @@ if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed
 
 // CORS Headers
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Handle preflight (OPTIONS) requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
