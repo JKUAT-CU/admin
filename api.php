@@ -1,9 +1,19 @@
 <?php
 header('Content-Type: application/json');
 
-// Allow requests from all origins
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, OPTIONS'); // Include OPTIONS method
+// Dynamically allow the specific origin for credentialed requests
+$allowed_origin = 'https://v0-admin-vujvowtejgt-rivacj7yx-odingoiis-projects.vercel.app';
+if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $allowed_origin) {
+    header('Access-Control-Allow-Origin: ' . $allowed_origin);
+    header('Access-Control-Allow-Credentials: true'); // Allow credentials
+} else {
+    http_response_code(403); // Forbidden
+    echo json_encode(['message' => 'Origin not allowed']);
+    exit;
+}
+
+// Allow only specific methods and headers
+header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Handle preflight (OPTIONS) requests
@@ -24,7 +34,7 @@ $dotenv->load();
 // Validate API Key
 $headers = getallheaders();
 $providedApiKey = isset($headers['Authorization']) ? $headers['Authorization'] : null;
-$validApiKey = "f6cfe845-ce1f-407e-8eb9-c8ac79894649"; // Fetch API key from the .env file
+$validApiKey = "f6cfe845-ce1f-407e-8eb9-c8ac79894649";
 
 if ($providedApiKey !== $validApiKey) {
     http_response_code(403); // Forbidden
