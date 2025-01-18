@@ -3,6 +3,14 @@ require_once 'db.php';
 
 header('Content-Type: application/json');
 
+// Handle the incoming request data
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input) {
+    http_response_code(400); // Bad Request
+    echo json_encode(['message' => 'Invalid JSON payload']);
+    exit;
+}
+
 function handleLogin($input)
 {
     global $mysqli;
@@ -24,7 +32,7 @@ function handleLogin($input)
     $email = $mysqli->real_escape_string($input['email']);
     $password = $input['password'];
 
-    // Prepare SQL query
+    // Prepare SQL query to fetch user data based on email
     $query = "SELECT id, password FROM users WHERE email = ?";
     $stmt = $mysqli->prepare($query);
     if (!$stmt) {
@@ -32,6 +40,7 @@ function handleLogin($input)
         echo json_encode(['message' => 'Database error']);
         exit;
     }
+
     $stmt->bind_param('s', $email);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -45,56 +54,18 @@ function handleLogin($input)
 
     $user = $result->fetch_assoc();
 
-    // Verify password
+    // Verify the password
     if (!password_verify($password, $user['password'])) {
         http_response_code(401); // Unauthorized
         echo json_encode(['message' => 'Invalid email or password']);
         exit;
     }
 
-    // Generate JWT token
-    $payload = [
-        'id' => $user['id'],
-        'email' => $email,
-        'iat' => time(),
-        'exp' => time() + 3600, // Token valid for 1 hour
-    ];
-    $key = 'hwhnmf-qxklvm-aj9qmn984'; // Replace with a secure key
-    $jwt = generateJWT($payload, $key);
-
-    http_response_code(200); // OK
-    echo json_encode([
-        'message' => 'Login successful',
-        'token' => $jwt,
-    ]);
-}
-
-function generateJWT($payload, $key)
-{
-    $header = json_encode(['typ' => 'JWT', 'alg' => 'HS256']);
-    $payload = json_encode($payload);
-
-    $base64Header = base64UrlEncode($header);
-    $base64Payload = base64UrlEncode($payload);
-
-    $signature = hash_hmac('sha256', "$base64Header.$base64Payload", $key, true);
-    $base64Signature = base64UrlEncode($signature);
-
-    return "$base64Header.$base64Payload.$base64Signature";
-}
-
-function base64UrlEncode($data)
-{
-    return str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($data));
-}
-
-// Handle request
-$input = json_decode(file_get_contents('php://input'), true);
-if (!$input) {
-    http_response_code(400); // Bad Request
-    echo json_encode(['message' => 'Invalid JSON payload']);
+    // Login successful: return user ID
+    echo json_encode(['message' => 'Login successful', 'user_id' => $user['id']]);
     exit;
 }
 
+// Call the function to handle login
 handleLogin($input);
 ?>
