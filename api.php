@@ -61,9 +61,9 @@ if (!isset($input['action'])) {
 
 $action = $input['action'];
 switch ($action) {
-    case 'login':
-        handleLogin($input);
-        break;
+    // case 'login':
+    //     handleLogin($input);
+    //     break;
     case 'submit-budget':
         handleBudgetSubmission($input);
         break;
