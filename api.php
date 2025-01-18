@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 
 // Dynamically allow specific origins
 $allowed_origins = [
-    'https://snzzcpyh0dzxwvdj.vercel.app'
+    'https://snzzcpyh0dzxwvdj.vercel.app/'
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
@@ -28,8 +28,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Autoload dependencies and initialize environment
 require_once 'db.php';
 require_once 'functions/login.php';
-require_once 'functions/budget.php';
 require 'vendor/autoload.php';
+require_once 'functions/budget.php';
 
 use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(__DIR__);
@@ -46,18 +46,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 // Validate and handle the action
-// Debugging input
-error_log('Raw input: ' . file_get_contents('php://input'));
-error_log('Parsed input: ' . json_encode($input));
-error_log('Action received: ' . $input['action']);
-
-
 if (!isset($input['action'])) {
     http_response_code(400);
     echo json_encode(['message' => 'Action is required']);
     exit;
 }
-
 
 $action = $input['action'];
 switch ($action) {
