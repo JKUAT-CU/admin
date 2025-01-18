@@ -40,7 +40,7 @@ if (!$mysqli->select_db($database)) {
     die("Database selection failed: " . $mysqli->error);
 }
 
-echo "Connected successfully to the database!<br>";
+
 
 // Return the $mysqli object for other scripts to use
 return $mysqli;
