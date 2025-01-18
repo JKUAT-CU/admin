@@ -1,16 +1,19 @@
 <?php
 header('Content-Type: application/json');
 
-// Dynamically allow specific origins
-$allowed_origin = 'https://ctgo69pcu6mm4wjk.vercel.app';
-if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $allowed_origin) {
-    header('Access-Control-Allow-Origin: ' . $allowed_origin);
-    header('Access-Control-Allow-Credentials: true'); // Allow credentials
+$allowed_origins = [
+    'https://ctgo69pcu6mm4wjk.vercel.app',
+    'https://v0.dev/chat/final-portal-UfXVhMMq6kv'
+];
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+    header('Access-Control-Allow-Credentials: true');
 } else {
-    http_response_code(403); // Forbidden
+    http_response_code(403);
     echo json_encode(['message' => 'Origin not allowed']);
     exit;
 }
+
 
 // CORS Headers
 header('Access-Control-Allow-Methods: POST, OPTIONS');
