@@ -2,7 +2,7 @@
 header('Content-Type: application/json');
 
 // Dynamically allow the specific origin for credentialed requests
-$allowed_origin = 'https://v0-admin-vujvowtejgt-76em3aat4-odingoiis-projects.vercel.app';
+$allowed_origin = 'https://v0-admin-vujvowtejgt-68l3vbseb-odingoiis-projects.vercel.app/';
 if (isset($_SERVER['HTTP_ORIGIN']) && $_SERVER['HTTP_ORIGIN'] === $allowed_origin) {
     header('Access-Control-Allow-Origin: ' . $allowed_origin);
     header('Access-Control-Allow-Credentials: true'); // Allow credentials
