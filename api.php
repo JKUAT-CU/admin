@@ -3,7 +3,8 @@ header('Content-Type: application/json');
 
 // Allowed origins for CORS
 $allowed_origins = [
-    'https://9tt8scax6ffpqqi9.vercel.app'
+    'https://9tt8scax6ffpqqi9.vercel.app',
+    'http://localhost:3000'
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
