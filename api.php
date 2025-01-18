@@ -4,7 +4,8 @@ header('Content-Type: application/json');
 // Dynamically allow specific origins
 $allowed_origins = [
     'https://v0.dev/chat/final-portal-UfXVhMMq6kv',
-    'https://ctgo69pcu6mm4wjk.vercel.app'
+    'https://ctgo69pcu6mm4wjk.vercel.app',
+    'https://zyirxkuwwq9uutwc.vercel.app'
 ];
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
     header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
