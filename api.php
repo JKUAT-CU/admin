@@ -105,11 +105,6 @@ switch ($_SERVER['REQUEST_METHOD']) {
         break;
 }
 
-// Function to handle login
-function handleLogin($input) {
-    // Handle the login logic
-    echo json_encode(['message' => 'Login successful']);
-}
 
 // Function to handle budget submission
 function handleBudgetSubmission($input) {
