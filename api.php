@@ -49,6 +49,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Debugging input
 error_log('Raw input: ' . file_get_contents('php://input'));
 error_log('Parsed input: ' . json_encode($input));
+error_log('Action received: ' . $input['action']);
+
 
 if (!isset($input['action'])) {
     http_response_code(400);
