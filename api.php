@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 
 // Dynamically allow specific origins
 $allowed_origins = [
-    'https://ywxctqfhqhqsqedw.vercel.app'
+    'https://snzzcpyh0dzxwvdj.vercel.app'
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
