@@ -31,14 +31,21 @@ use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(__DIR__);
 $dotenv->load();
 
-// Validate API Key
+// Collect and log all headers for debugging
 $headers = getallheaders();
-$providedApiKey = isset($headers['Authorization']) ? $headers['Authorization'] : null;
-$validApiKey = "f6cfe845-ce1f-407e-8eb9-c8ac79894649";
+file_put_contents('headers_debug.log', json_encode($headers, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+
+// Validate API Key
+$providedApiKey = $headers['Authorization'] ?? null;
+$validApiKey = getenv('API_KEY'); // Fetch the API key from the .env file
 
 if ($providedApiKey !== $validApiKey) {
-    http_response_code(403); // Forbidden
-    echo json_encode(['message' => 'Invalid API key']);
+    http_response_code(401); // Unauthorized
+    echo json_encode([
+        'message' => 'Invalid API key',
+        'received_key' => $providedApiKey,
+        'expected_key' => $validApiKey,
+    ]);
     exit;
 }
 
