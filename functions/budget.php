@@ -26,6 +26,13 @@ function handleBudgetSubmission($input)
         exit;
     }
 
+    // Check if the budget for this department and semester already exists in the database
+    if (checkBudgetExists($department_id, $semester)) {
+        http_response_code(400);
+        echo json_encode(['message' => 'Budget for this department and semester already exists']);
+        exit;
+    }
+
     // Begin transaction
     $mysqli->begin_transaction();
 
@@ -106,21 +113,28 @@ function handleBudgetSubmission($input)
         echo json_encode(['message' => 'Failed to submit budget', 'error' => $e->getMessage()]);
     }
 }
+// Function to check if a budget exists for a particular department and semester
+function checkBudgetExists($department_id, $semester)
+{
+    global $mysqli;
 
-// Ensure POST request and decode input JSON
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $input = json_decode(file_get_contents('php://input'), true);
+    // Sanitize inputs
+    $department_id = (int)$department_id;
+    $semester = $mysqli->real_escape_string($semester);
 
-    if ($input === null) {
-        http_response_code(400);
-        echo json_encode(['message' => 'Invalid JSON input']);
-        exit;
+    // Query to check if a budget exists
+    $query = "SELECT COUNT(*) FROM budgets WHERE department_id = ? AND semester = ?";
+    $stmt = $mysqli->prepare($query);
+    
+    if (!$stmt) {
+        throw new Exception('Failed to prepare budget check query');
     }
 
-    handleBudgetSubmission($input);
-} else {
-    http_response_code(405); // Method not allowed
-    echo json_encode(['message' => 'Invalid request method']);
-    exit;
+    $stmt->bind_param('is', $department_id, $semester);
+    $stmt->execute();
+    $stmt->bind_result($count);
+    $stmt->fetch();
+    $stmt->close();
+
+    return $count > 0; // Return true if a budget exists, false otherwise
 }
-?>
