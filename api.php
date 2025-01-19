@@ -38,7 +38,7 @@ $input = json_decode(file_get_contents('php://input'), true);
 
 if ($requestMethod === 'POST' && strpos($requestUri, '/api/login') !== false) {
     handleLogin($input);
-} elseif ($requestMethod === 'POST' && strpos($requestUri, '/api/budget') !== false) {
+} elseif ($requestMethod === 'POST' && strpos($requestUri, '/api/budget:semester') !== false) {
     handleBudgetSubmission($input);
 } else {
     http_response_code(404);
