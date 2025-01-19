@@ -69,4 +69,3 @@ function handleAccountSelection()
     echo json_encode(['accounts' => $accounts]);
 }
 ?>
-s

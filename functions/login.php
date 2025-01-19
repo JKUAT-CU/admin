@@ -1,5 +1,6 @@
 <?php
 require_once 'db.php';
+require_once '../session.php';
 
 header('Content-Type: application/json');
 
@@ -14,7 +15,6 @@ if (!$input) {
 function handleLogin($input)
 {
     global $mysqli;
-
 
     // Check if email and password are provided
     if (!isset($input['email']) || !isset($input['password'])) {
@@ -55,9 +55,40 @@ function handleLogin($input)
         exit;
     }
 
-    // Login successful: return user ID
-    echo json_encode(['message' => 'Login successful', 'user_id' => $user['id']]);
-    exit;
+    // Fetch user accounts with roles and departments
+    $query = "
+        SELECT u.id AS user_id, u.email, r.name AS role_name, r.id AS role_id, 
+               d.name AS department_name, d.id AS department_id
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        LEFT JOIN departments d ON u.department_id = d.id
+        WHERE u.id = ?
+    ";
+    $stmt = $mysqli->prepare($query);
+    if (!$stmt) {
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['message' => 'Database error']);
+        exit;
+    }
+
+    $stmt->bind_param('i', $user['id']);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $accounts = $result->fetch_all(MYSQLI_ASSOC);
+
+    if (!$accounts) {
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['message' => 'No accounts found for this user']);
+        exit;
+    }
+
+    // Return user ID and accounts
+    echo json_encode([
+        'message' => 'Login successful',
+        'user_id' => $user['id'],
+        'accounts' => $accounts
+    ]);
 }
 
 // Call the function to handle login
