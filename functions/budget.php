@@ -28,7 +28,7 @@ function handleBudgetSubmission($input)
     }
 
     // Prepare and execute SQL
-    $query = "INSERT INTO budgets (semester, grand_total, assets, events) VALUES (?, ?, ?, ?)";
+    $query = "INSERT INTO budgets (semester, grand_total) VALUES (?, ?)";
     $stmt = $mysqli->prepare($query);
 
     if (!$stmt) {
@@ -37,7 +37,7 @@ function handleBudgetSubmission($input)
         exit;
     }
 
-    $stmt->bind_param('sdss', $semester, $grandTotal, $assets, $events);
+    $stmt->bind_param('sd', $semester, $grandTotal);
 
     if ($stmt->execute()) {
         echo json_encode(['message' => 'Budget submitted successfully']);
