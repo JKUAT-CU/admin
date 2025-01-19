@@ -15,12 +15,6 @@ function handleLogin($input)
 {
     global $mysqli;
 
-    // Validate action
-    if (!isset($input['action']) || $input['action'] !== 'login') {
-        http_response_code(400); // Bad Request
-        echo json_encode(['message' => 'Invalid action']);
-        exit;
-    }
 
     // Check if email and password are provided
     if (!isset($input['email']) || !isset($input['password'])) {
