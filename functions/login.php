@@ -47,21 +47,21 @@ function handleLogin($input)
 
     $user = $result->fetch_assoc();
 
-    // Verify the password
+    // Verify the password for the first user found
     if (!password_verify($password, $user['password'])) {
         http_response_code(401); // Unauthorized
         echo json_encode(['message' => 'Invalid email or password']);
         exit;
     }
 
-    // Fetch user accounts with roles and departments
+    // Fetch all accounts with the same email
     $query = "
         SELECT u.id AS user_id, u.email, r.name AS role_name, r.id AS role_id, 
                d.name AS department_name, d.id AS department_id
         FROM users u
         LEFT JOIN roles r ON u.role_id = r.id
         LEFT JOIN departments d ON u.department_id = d.id
-        WHERE u.id = ?
+        WHERE u.email = ?
     ";
     $stmt = $mysqli->prepare($query);
     if (!$stmt) {
@@ -70,7 +70,7 @@ function handleLogin($input)
         exit;
     }
 
-    $stmt->bind_param('i', $user['id']);
+    $stmt->bind_param('s', $email);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -78,14 +78,13 @@ function handleLogin($input)
 
     if (!$accounts) {
         http_response_code(500); // Internal Server Error
-        echo json_encode(['message' => 'No accounts found for this user']);
+        echo json_encode(['message' => 'No accounts found for this email']);
         exit;
     }
 
-    // Return user ID and accounts
+    // Return all accounts for the email
     echo json_encode([
         'message' => 'Login successful',
-        'user_id' => $user['id'],
         'accounts' => $accounts
     ]);
 }
