@@ -8,7 +8,7 @@ function handleBudgetSubmission($input)
     header('Content-Type: application/json'); // Ensure JSON response for all cases
 
     // Validate required fields
-    if (!isset($input['semester'], $input['grandTotal'], $input['assets'], $input['events'])) {
+    if (!isset($input['department_id'], $input['semester'], $input['grandTotal'], $input['assets'], $input['events'])) {
         http_response_code(400);
         echo json_encode(['message' => 'Missing required fields']);
         exit;
@@ -24,13 +24,13 @@ function handleBudgetSubmission($input)
 
     try {
         // Insert budget into `budgets` table
-        $query = "INSERT INTO budgets (semester, grand_total, created_at) VALUES (?, ?, NOW())";
+        $query = "INSERT INTO budgets (department_id, semester, grand_total, created_at) VALUES (?, ?, ?, NOW())";
         $stmt = $mysqli->prepare($query);
         if (!$stmt) {
             throw new Exception('Failed to prepare budget insert query');
         }
 
-        $stmt->bind_param('sd', $semester, $grandTotal);
+        $stmt->bind_param('ssd',$department_id, $semester, $grandTotal);
         $stmt->execute();
 
         // Get the ID of the newly inserted budget
