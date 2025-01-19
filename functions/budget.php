@@ -113,6 +113,7 @@ function handleBudgetSubmission($input)
         echo json_encode(['message' => 'Failed to submit budget', 'error' => $e->getMessage()]);
     }
 }
+
 // Function to check if a budget exists for a particular department and semester
 function checkBudgetExists($department_id, $semester)
 {
@@ -138,3 +139,4 @@ function checkBudgetExists($department_id, $semester)
 
     return $count > 0; // Return true if a budget exists, false otherwise
 }
+?>
