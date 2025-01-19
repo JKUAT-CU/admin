@@ -1,357 +1,536 @@
-<?php
-include('accesscontrol.php'); // Check for access control
-include('backend/db.php');    // Database connection
+"use client"
 
-// Validate and store the open timeline info in the session
-if (isset($timelineState['timeline'])) {
-    $_SESSION['timeline'] = $timelineState['timeline'];
+import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Plus, Trash2, Download } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/contexts/AuthContext"
+import { jsPDF } from "jspdf"
+import "jspdf-autotable"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+
+interface BudgetItem {
+  id: string
+  name: string
+  quantity: number
+  price: number
 }
 
-// Validate `department_id` and `timeline_id` from the session
-if (!isset($_SESSION['department_id']) || !isset($_SESSION['timeline']['id'])) {
-    die("<script>alert('Error: Required parameters are missing.'); window.location.href='dashboard';</script>");
+interface Event {
+  id: string
+  name: string
+  attendance: number
+  items: BudgetItem[]
 }
 
-$department_id = (int)$_SESSION['department_id'];
-$timeline_id = (int)$_SESSION['timeline']['id'];
+export function BudgetForm({ semester }: { semester: string }) {
+  const [events, setEvents] = useState<Event[]>([])
+  const [assets, setAssets] = useState<BudgetItem[]>([])
+  const [budgetExists, setBudgetExists] = useState(false)
+  const router = useRouter()
+  const { toast } = useToast()
+  const { currentAccount } = useAuth()
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false)
 
-// Prepare the query to check if an existing budget exists
-$existingBudgetQuery = $mysqli->prepare("SELECT id FROM budgets WHERE department_id = ? AND timeline_id = ?");
-if (!$existingBudgetQuery) {
-    die("<script>alert('Error: Failed to prepare the database query.'); window.location.href='dashboard';</script>");
+  useEffect(() => {
+    checkBudgetExists()
+  }, [semester, currentAccount])
+
+  const checkBudgetExists = async () => {
+    if (!currentAccount) return
+
+    try {
+      const response = await fetch("https://admin.jkuatcu.org/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "check-budget-exists",
+          department_id: currentAccount.department_id,
+          semester,
+        }),
+        credentials: "include",
+      })
+
+      const data = await response.json()
+      setBudgetExists(data.exists)
+    } catch (error) {
+      console.error("Error checking budget existence:", error)
+    }
+  }
+
+  const addEvent = () => {
+    setEvents([...events, { id: Date.now().toString(), name: "", attendance: 0, items: [] }])
+  }
+
+  const addEventItem = (eventId: string) => {
+    setEvents(
+      events.map((event) =>
+        event.id === eventId
+          ? { ...event, items: [...event.items, { id: Date.now().toString(), name: "", quantity: 0, price: 0 }] }
+          : event,
+      ),
+    )
+  }
+
+  const addAsset = () => {
+    setAssets([...assets, { id: Date.now().toString(), name: "", quantity: 0, price: 0 }])
+  }
+
+  const updateEvent = (eventId: string, field: string, value: string | number) => {
+    setEvents(events.map((event) => (event.id === eventId ? { ...event, [field]: value } : event)))
+  }
+
+  const updateEventItem = (eventId: string, itemId: string, field: string, value: string | number) => {
+    setEvents(
+      events.map((event) =>
+        event.id === eventId
+          ? { ...event, items: event.items.map((item) => (item.id === itemId ? { ...item, [field]: value } : item)) }
+          : event,
+      ),
+    )
+  }
+
+  const updateAsset = (assetId: string, field: string, value: string | number) => {
+    setAssets(assets.map((asset) => (asset.id === assetId ? { ...asset, [field]: value } : asset)))
+  }
+
+  const removeEvent = (eventId: string) => {
+    setEvents(events.filter((event) => event.id !== eventId))
+  }
+
+  const removeEventItem = (eventId: string, itemId: string) => {
+    setEvents(
+      events.map((event) =>
+        event.id === eventId ? { ...event, items: event.items.filter((item) => item.id !== itemId) } : event,
+      ),
+    )
+  }
+
+  const removeAsset = (assetId: string) => {
+    setAssets(assets.filter((asset) => asset.id !== assetId))
+  }
+
+  const calculateTotal = (items: BudgetItem[]) => {
+    return items.reduce((total, item) => total + item.quantity * item.price, 0)
+  }
+
+  const calculateGrandTotal = () => {
+    const eventsTotal = events.reduce((total, event) => total + calculateTotal(event.items), 0)
+    const assetsTotal = calculateTotal(assets)
+    return eventsTotal + assetsTotal
+  }
+
+  const validateBudget = () => {
+    if (events.length === 0 && assets.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please add at least one event or asset to the budget.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    for (const event of events) {
+      if (!event.name || event.attendance <= 0 || event.items.length === 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all event details and add at least one item to each event.",
+          variant: "destructive",
+        })
+        return false
+      }
+      for (const item of event.items) {
+        if (!item.name || item.quantity <= 0 || item.price <= 0) {
+          toast({
+            title: "Validation Error",
+            description: "Please fill in all item details for each event.",
+            variant: "destructive",
+          })
+          return false
+        }
+      }
+    }
+
+    for (const asset of assets) {
+      if (!asset.name || asset.quantity <= 0 || asset.price <= 0) {
+        toast({
+          title: "Validation Error",
+          description: "Please fill in all asset details.",
+          variant: "destructive",
+        })
+        return false
+      }
+    }
+
+    if (calculateGrandTotal() <= 0) {
+      toast({
+        title: "Validation Error",
+        description: "The total budget amount must be greater than zero.",
+        variant: "destructive",
+      })
+      return false
+    }
+
+    return true
+  }
+
+  const generatePDF = () => {
+    const doc = new jsPDF()
+    doc.setFontSize(18)
+    doc.text(`Budget for ${currentAccount?.department_name} - ${semester}`, 14, 22)
+    doc.setFontSize(12)
+    doc.text(`Date: ${new Date().toLocaleDateString()}`, 14, 32)
+
+    let yPos = 40
+
+    // Events
+    events.forEach((event, index) => {
+      doc.setFontSize(14)
+      doc.text(`Event: ${event.name}`, 14, yPos)
+      yPos += 10
+      doc.setFontSize(12)
+      doc.text(`Attendees: ${event.attendance}`, 14, yPos)
+      yPos += 10
+
+      const eventItemsData = event.items.map((item) => [
+        item.name,
+        item.quantity.toString(),
+        `$${item.price.toFixed(2)}`,
+        `$${(item.quantity * item.price).toFixed(2)}`,
+      ])
+
+      doc.autoTable({
+        startY: yPos,
+        head: [["Item", "Quantity", "Price", "Total"]],
+        body: eventItemsData,
+      })
+
+      yPos = (doc as any).lastAutoTable.finalY + 10
+      doc.text(`Event Total: $${calculateTotal(event.items).toFixed(2)}`, 14, yPos)
+      yPos += 15
+    })
+
+    // Assets
+    if (assets.length > 0) {
+      doc.setFontSize(14)
+      doc.text("Assets", 14, yPos)
+      yPos += 10
+
+      const assetsData = assets.map((asset) => [
+        asset.name,
+        asset.quantity.toString(),
+        `$${asset.price.toFixed(2)}`,
+        `$${(asset.quantity * asset.price).toFixed(2)}`,
+      ])
+
+      doc.autoTable({
+        startY: yPos,
+        head: [["Asset", "Quantity", "Price", "Total"]],
+        body: assetsData,
+      })
+
+      yPos = (doc as any).lastAutoTable.finalY + 10
+    }
+
+    // Grand Total
+    doc.setFontSize(16)
+    doc.text(`Grand Total: $${calculateGrandTotal().toFixed(2)}`, 14, yPos)
+
+    return doc
+  }
+
+  const handleSubmit = async () => {
+    if (!currentAccount) {
+      toast({
+        title: "Error",
+        description: "No account selected. Please select an account first.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (budgetExists) {
+      toast({
+        title: "Budget Already Exists",
+        description:
+          "A budget for this department and semester already exists. Please edit the existing budget if changes are needed.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (!validateBudget()) {
+      return
+    }
+
+    const payload = {
+      action: "submit-budget",
+      semester,
+      department_id: currentAccount.department_id,
+      events: events.map((event) => ({
+        name: event.name,
+        attendance: event.attendance,
+        items: event.items.map((item) => ({
+          name: item.name,
+          quantity: item.quantity,
+          price: item.price,
+          total: item.quantity * item.price,
+        })),
+        total: calculateTotal(event.items),
+      })),
+      assets: assets.map((asset) => ({
+        name: asset.name,
+        quantity: asset.quantity,
+        price: asset.price,
+        total: asset.quantity * asset.price,
+      })),
+      grandTotal: calculateGrandTotal(),
+    }
+
+    try {
+      const response = await fetch("https://admin.jkuatcu.org/api", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        // Generate PDF
+        const pdf = generatePDF()
+        pdf.save(`budget_${currentAccount.department_name}_${semester}.pdf`)
+
+        // Send PDF to backend
+        const pdfBlob = pdf.output("blob")
+        const formData = new FormData()
+        formData.append("pdf", pdfBlob, `budget_${currentAccount.department_name}_${semester}.pdf`)
+        formData.append("action", "upload-pdf")
+        formData.append("department_id", currentAccount.department_id.toString())
+        formData.append("semester", semester)
+
+        const uploadResponse = await fetch("https://admin.jkuatcu.org/api", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        })
+
+        if (!uploadResponse.ok) {
+          console.error("Failed to upload PDF to server")
+        }
+
+        setShowSuccessAlert(true)
+      } else {
+        toast({
+          title: "Submission Error",
+          description: data.message || "Failed to submit budget. Please try again.",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      console.error("Error submitting budget:", error)
+      toast({
+        title: "Submission Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  return (
+    <>
+      <div className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex justify-between items-center">
+              <span>Event Budget - {semester}</span>
+              {budgetExists && <span className="text-yellow-500">Budget already exists for this semester</span>}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {events.map((event) => (
+              <div key={event.id} className="mb-8 border p-4 rounded-lg">
+                <div className="flex gap-4 mb-4">
+                  <Input
+                    placeholder="Event Name"
+                    value={event.name}
+                    onChange={(e) => updateEvent(event.id, "name", e.target.value)}
+                  />
+                  <Input
+                    type="number"
+                    placeholder="Attendance"
+                    value={event.attendance}
+                    onChange={(e) => updateEvent(event.id, "attendance", Number.parseInt(e.target.value))}
+                  />
+                  <Button variant="destructive" size="icon" onClick={() => removeEvent(event.id)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Item</TableHead>
+                      <TableHead>Price per item</TableHead>
+                      <TableHead>Quantity</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {event.items.map((item) => (
+                      <TableRow key={item.id}>
+                        <TableCell>
+                          <Input
+                            placeholder="Item Name"
+                            value={item.name}
+                            onChange={(e) => updateEventItem(event.id, item.id, "name", e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            placeholder="Price"
+                            value={item.price}
+                            onChange={(e) =>
+                              updateEventItem(event.id, item.id, "price", Number.parseFloat(e.target.value))
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            placeholder="Quantity"
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateEventItem(event.id, item.id, "quantity", Number.parseInt(e.target.value))
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>{(item.price * item.quantity).toFixed(2)}</TableCell>
+                        <TableCell>
+                          <Button variant="destructive" size="icon" onClick={() => removeEventItem(event.id, item.id)}>
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+                <Button onClick={() => addEventItem(event.id)} className="mt-4">
+                  <Plus className="mr-2 h-4 w-4" /> Add Item
+                </Button>
+                <div className="text-right mt-4">
+                  <strong>Event Total: {calculateTotal(event.items).toFixed(2)}</strong>
+                </div>
+              </div>
+            ))}
+            <Button onClick={addEvent}>
+              <Plus className="mr-2 h-4 w-4" /> Add Event
+            </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Asset Budget - {semester}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Item</TableHead>
+                  <TableHead>Price per item</TableHead>
+                  <TableHead>Quantity</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {assets.map((asset) => (
+                  <TableRow key={asset.id}>
+                    <TableCell>
+                      <Input
+                        placeholder="Item Name"
+                        value={asset.name}
+                        onChange={(e) => updateAsset(asset.id, "name", e.target.value)}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        placeholder="Price"
+                        value={asset.price}
+                        onChange={(e) => updateAsset(asset.id, "price", Number.parseFloat(e.target.value))}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="number"
+                        placeholder="Quantity"
+                        value={asset.quantity}
+                        onChange={(e) => updateAsset(asset.id, "quantity", Number.parseInt(e.target.value))}
+                      />
+                    </TableCell>
+                    <TableCell>{(asset.price * asset.quantity).toFixed(2)}</TableCell>
+                    <TableCell>
+                      <Button variant="destructive" size="icon" onClick={() => removeAsset(asset.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <Button onClick={addAsset} className="mt-4">
+              <Plus className="mr-2 h-4 w-4" /> Add Asset
+            </Button>
+            <div className="text-right mt-4">
+              <strong>Assets Total: {calculateTotal(assets).toFixed(2)}</strong>
+            </div>
+          </CardContent>
+        </Card>
+
+        <div className="text-right">
+          <h3 className="text-xl font-bold">Grand Total: {calculateGrandTotal().toFixed(2)}</h3>
+        </div>
+
+        <Button onClick={handleSubmit} className="w-full" disabled={budgetExists}>
+          {budgetExists ? "Budget Already Exists" : "Submit Budget"}
+        </Button>
+      </div>
+
+      <AlertDialog open={showSuccessAlert} onOpenChange={setShowSuccessAlert}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Budget Submitted Successfully</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your budget has been successfully submitted for {currentAccount?.department_name}. A PDF of your budget
+              has been generated and uploaded to the server.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => router.push("/dashboard")}>Return to Dashboard</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
+  )
 }
 
-// Bind parameters and execute the query
-$existingBudgetQuery->bind_param("ii", $department_id, $timeline_id);
-if (!$existingBudgetQuery->execute()) {
-    die("<script>alert('Error: Query execution failed.'); window.location.href='dashboard';</script>");
-}
-
-?>
-
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Department Budget Management</title>
-    <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
-    <link href="assets/css/styles.css" rel="stylesheet">
-
-<?php include('templates/sidebar.php');?>
-    <style>
-        :root {
-            --primary-color: #800000;
-            --secondary-color: #089000;
-        }
-
-        body {
-            background-color: #f8f9fa;
-        }
-
-        .btn-primary, .btn-add-event, .btn-add-asset {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .table thead {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-    </style>
-</head>
-<body>
-
-<div class="container mt-5">
-    <h2>Budget Management</h2>
-    
-    <!-- Events Table -->
-    <div class="table-responsive mb-5">
-        <h3>Events</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Event Name</th>
-                    <th>Attendees</th>
-                    <th>Item Name</th>
-                    <th>Quantity</th>
-                    <th>Cost per Item</th>
-                    <th>Total Cost</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="eventsTableBody"></tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="7" class="text-center">
-                        <button class="btn btn-add-event" onclick="addEventRow()">+ Add Another Event</button>
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-
-    <!-- Assets Table -->
-    <div class="table-responsive mb-5">
-        <h3>Assets</h3>
-        <table class="table table-striped">
-            <thead>
-                <tr>
-                    <th>Item Name</th>
-                    <th>Quantity</th>
-                    <th>Cost per Item</th>
-                    <th>Total Cost</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="assetsTableBody"></tbody>
-            <tfoot>
-                <tr>
-                    <td colspan="5" class="text-center">
-                        <button class="btn btn-add-asset" onclick="addAssetRow()">+ Add Another Asset</button>
-                    </td>
-                </tr>
-            </tfoot>
-        </table>
-    </div>
-
-    <!-- Grand Total -->
-    <div class="text-right mb-5">
-        <h4>Grand Total: <span id="grandTotal">0.00</span></h4>
-        <button class="btn btn-success" onclick="submitBudget()">Submit Budget</button>
-    </div>
-</div>
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-<script>
-    // Add Event Row
-    function addEventRow() {
-        const eventId = `event-${Date.now()}`;
-        const newRow = `
-        <tr class="event-header-row" data-event-id="${eventId}">
-            <td colspan="2">
-                <input type="text" class="form-control event-name" placeholder="Event Name" required>
-            </td>
-            <td>
-                <input type="number" class="form-control event-attendees" placeholder="Attendees" min="1" required>
-            </td>
-            <td colspan="3" class="text-right">
-                <button type="button" class="btn btn-sm btn-add-item" onclick="addEventItemRow('${eventId}')">+ Add Item</button>
-            </td>
-        </tr>
-        <tr class="event-item-row" data-event-id="${eventId}">
-            <td colspan="2"></td>
-            <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="item-total">0.00</span></td>
-            <td><button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button></td>
-        </tr>
-        <tr class="event-subtotal-row" data-event-id="${eventId}">
-            <td colspan="5" class="text-right"><strong>Event Subtotal:</strong></td>
-            <td><span class="event-subtotal">0.00</span></td>
-            <td></td>
-        </tr>`;
-        $('#eventsTableBody').append(newRow);
-    }
-
-    // Add Additional Item Row for Event
-    function addEventItemRow(eventId) {
-        const newItemRow = `
-        <tr class="event-item-row" data-event-id="${eventId}">
-            <td colspan="2"></td>
-            <td><input type="text" class="form-control item-name" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control item-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control item-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="item-total">0.00</span></td>
-            <td><button type="button" class="btn btn-danger btn-sm remove-item-btn" onclick="removeRow(this)">Remove</button></td>
-        </tr>`;
-        $(`tr[data-event-id="${eventId}"].event-subtotal-row`).before(newItemRow);
-    }
-
-    // Add Asset Row
-    function addAssetRow() {
-        const newRow = `
-        <tr class="asset-item-row">
-            <td><input type="text" class="form-control" placeholder="Item Name" required></td>
-            <td><input type="number" class="form-control asset-quantity" placeholder="Quantity" min="1" required></td>
-            <td><input type="number" class="form-control asset-cost" placeholder="Cost per Item" min="0.01" step="0.01" required></td>
-            <td><span class="asset-total">0.00</span></td>
-            <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">Remove</button></td>
-        </tr>`;
-        const subtotalRow = $('#assetsTableBody .asset-subtotal-row');
-        if (subtotalRow.length) {
-            subtotalRow.before(newRow);
-        } else {
-            const subtotalRowHtml = `
-            <tr class="asset-subtotal-row">
-                <td colspan="3" class="text-right"><strong>Assets Subtotal:</strong></td>
-                <td class="assets-subtotal">0.00</td>
-                <td></td>
-            </tr>`;
-            $('#assetsTableBody').append(newRow).append(subtotalRowHtml);
-        }
-        updateTotals();
-    }
-
-    // Update Asset Subtotal
-    function updateAssetSubtotal() {
-        let assetsSubtotal = 0;
-        $('#assetsTableBody .asset-item-row').each(function () {
-            const qty = parseFloat($(this).find('.asset-quantity').val()) || 0;
-            const cost = parseFloat($(this).find('.asset-cost').val()) || 0;
-            const total = qty * cost;
-            $(this).find('.asset-total').text(total.toFixed(2));
-            assetsSubtotal += total;
-        });
-        $('#assetsTableBody .assets-subtotal').text(assetsSubtotal.toFixed(2));
-        return assetsSubtotal;
-    }
-
-    // Update Totals
-    let debounceTimer;
-    function updateTotals() {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            let eventsSubtotal = 0;
-            $('#eventsTableBody').find('.event-header-row').each(function () {
-                const eventId = $(this).data('event-id');
-                let eventTotal = 0;
-                $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
-                    const qty = parseFloat($(this).find('.item-quantity').val()) || 0;
-                    const cost = parseFloat($(this).find('.item-cost').val()) || 0;
-                    const total = qty * cost;
-                    $(this).find('.item-total').text(total.toFixed(2));
-                    eventTotal += total;
-                });
-                $(`.event-subtotal-row[data-event-id="${eventId}"] .event-subtotal`).text(eventTotal.toFixed(2));
-                eventsSubtotal += eventTotal;
-            });
-            const assetsSubtotal = updateAssetSubtotal();
-            $('#grandTotal').text((eventsSubtotal + assetsSubtotal).toFixed(2));
-        }, 300);
-    }
-
-    // Remove Row
-    function removeRow(button) {
-        $(button).closest('tr').remove();
-        updateTotals();
-    }
-
-    // Real-Time Update
-    $(document).on('input', '.item-quantity, .item-cost, .asset-quantity, .asset-cost', updateTotals);
-
-    // Submit Budget
-    async function submitBudget() {
-        try {
-            const events = [];
-            const assets = [];
-            let validationError = false;
-
-            // Gather Events Data
-            $('#eventsTableBody .event-header-row').each(function () {
-                const eventId = $(this).data('event-id');
-                const eventName = $(this).find('.event-name').val().trim();
-                const attendees = parseInt($(this).find('.event-attendees').val(), 10);
-
-                if (!eventName || attendees < 1) {
-                    alert("Please provide valid event details (name and attendees).");
-                    validationError = true;
-                    return false;
-                }
-
-                const items = [];
-                $(`.event-item-row[data-event-id="${eventId}"]`).each(function () {
-                    const itemName = $(this).find('.item-name').val().trim();
-                    const quantity = parseInt($(this).find('.item-quantity').val(), 10);
-                    const costPerItem = parseFloat($(this).find('.item-cost').val());
-
-                    if (!itemName || quantity < 1 || costPerItem < 0) {
-                        alert(`Please provide valid item details for "${eventName}".`);
-                        validationError = true;
-                        return false;
-                    }
-
-                    items.push({
-                        item_name: itemName,
-                        quantity,
-                        cost_per_item: costPerItem,
-                        total_cost: quantity * costPerItem
-                    });
-                });
-
-                if (validationError) return false;
-
-                const eventSubtotal = items.reduce((sum, item) => sum + item.total_cost, 0);
-
-                events.push({
-                    event_name: eventName,
-                    attendees,
-                    items,
-                    subtotal: eventSubtotal
-                });
-            });
-
-            if (validationError) return;
-
-            // Gather Assets Data
-            $('#assetsTableBody .asset-item-row').each(function () {
-                const itemName = $(this).find('input').eq(0).val().trim();
-                const quantity = parseInt($(this).find('.asset-quantity').val(), 10);
-                const costPerItem = parseFloat($(this).find('.asset-cost').val());
-
-                if (!itemName || quantity < 1 || costPerItem < 0) {
-                    alert("Please provide valid asset details.");
-                    validationError = true;
-                    return false;
-                }
-
-                assets.push({
-                    item_name: itemName,
-                    quantity,
-                    cost_per_item: costPerItem,
-                    total_cost: quantity * costPerItem
-                });
-            });
-
-            if (validationError) return;
-
-            const eventsSubtotal = events.reduce((sum, event) => sum + event.subtotal, 0);
-            const assetsSubtotal = assets.reduce((sum, asset) => sum + asset.total_cost, 0);
-            const grandTotal = eventsSubtotal + assetsSubtotal;
-
-            const payload = {
-                department_name: "<?php echo isset($_SESSION['department']) ? htmlspecialchars($_SESSION['department']) : ''; ?>",
-                date: new Date().toISOString().split('T')[0],
-                events,
-                assets,
-                grand_total: grandTotal
-            };
-
-            const response = await fetch('backend.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                alert(`Error: ${errorData.error}`);
-                return;
-            }
-
-            const responseData = await response.json();
-            alert('Budget submitted successfully!');
-            console.log(responseData); 
-        } catch (error) {
-            console.error('Submission failed:', error);
-            alert('An unexpected error occurred. Please try again.');
-        }
-    }
-</script>
-
-
-</body>
-</html>

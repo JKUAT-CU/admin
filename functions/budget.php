@@ -26,6 +26,29 @@ function handleBudgetSubmission($input)
         exit;
     }
 
+    // Check if a budget already exists for the department and semester
+    $checkQuery = "SELECT id FROM budgets WHERE department_id = ? AND semester = ?";
+    $checkStmt = $mysqli->prepare($checkQuery);
+
+    if (!$checkStmt) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Failed to prepare budget existence check query']);
+        exit;
+    }
+
+    $checkStmt->bind_param('is', $department_id, $semester);
+    $checkStmt->execute();
+    $checkStmt->store_result();
+
+    if ($checkStmt->num_rows > 0) {
+        $checkStmt->close();
+        http_response_code(400);
+        echo json_encode(['message' => 'Budget for this department and semester already exists']);
+        exit;
+    }
+
+    $checkStmt->close();
+
     // Begin transaction
     $mysqli->begin_transaction();
 
@@ -37,7 +60,7 @@ function handleBudgetSubmission($input)
             throw new Exception('Failed to prepare budget insert query');
         }
 
-        $stmt->bind_param('isd', $department_id, $semester, $grandTotal); // Use the validated department_id
+        $stmt->bind_param('isd', $department_id, $semester, $grandTotal);
         $stmt->execute();
 
         // Get the ID of the newly inserted budget
