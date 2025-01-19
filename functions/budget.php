@@ -14,10 +14,17 @@ function handleBudgetSubmission($input)
         exit;
     }
 
+    $department_id = (int)$input['department_id']; // Ensure department_id is extracted and cast to an integer
     $semester = $mysqli->real_escape_string($input['semester']);
     $grandTotal = (float)$input['grandTotal'];
     $assets = $input['assets'];
     $events = $input['events'];
+
+    if (empty($department_id)) { // Additional validation for department_id
+        http_response_code(400);
+        echo json_encode(['message' => 'Invalid department_id']);
+        exit;
+    }
 
     // Begin transaction
     $mysqli->begin_transaction();
@@ -30,7 +37,7 @@ function handleBudgetSubmission($input)
             throw new Exception('Failed to prepare budget insert query');
         }
 
-        $stmt->bind_param('ssd',$department_id, $semester, $grandTotal);
+        $stmt->bind_param('isd', $department_id, $semester, $grandTotal); // Use the validated department_id
         $stmt->execute();
 
         // Get the ID of the newly inserted budget
