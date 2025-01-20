@@ -3,8 +3,7 @@ header('Content-Type: application/json');
 
 // Allowed origins for CORS
 $allowedOrigins = [
-    'https://9tt8scax6ffpqqi9.vercel.app',
-    'http://localhost:3000'
+    'https://admin.jkuatcu.org',
 ];
 
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
