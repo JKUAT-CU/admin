@@ -4,108 +4,97 @@ header('Content-Type: application/json');
 
 // Allow all origins
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
+// Handle preflight requests
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+    http_response_code(204); // No Content
     exit;
 }
+
+// Database connection
 require_once 'db.php';
-require 'vendor/autoload.php';
 
-use Dotenv\Dotenv;
-$dotenv = Dotenv::createImmutable(__DIR__);
-$dotenv->load();
+// Fetch budgets by department (GET)
+function fetchBudgetsByDepartment($departmentId) {
+    global $conn;
 
-$requestUri = $_SERVER['REQUEST_URI'];
-$requestMethod = $_SERVER['REQUEST_METHOD'];
-$input = json_decode(file_get_contents('php://input'), true);
+    $query = "SELECT * FROM budgets WHERE department_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $departmentId);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
-if ($requestMethod === 'GET' && strpos($requestUri, '/api/budgets') === 0) {
-    $departmentId = isset($_GET['department_id']) ? $_GET['department_id'] : null;
+    if ($result->num_rows > 0) {
+        $budgets = [];
+        while ($row = $result->fetch_assoc()) {
+            $budgets[] = $row;
+        }
+        echo json_encode(['budgets' => $budgets]);
+    } else {
+        echo json_encode(['budgets' => []]);
+    }
+}
+
+// Save or update budgets (POST)
+function saveBudgets($budgets) {
+    global $conn;
+
+    foreach ($budgets as $budget) {
+        // Check if budget already exists
+        $query = "SELECT id FROM budgets WHERE id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $budget['id']);
+        $stmt->execute();
+        $result = $stmt->get_result();
+
+        if ($result->num_rows > 0) {
+            // Update existing budget
+            $query = "UPDATE budgets SET name = ?, semester = ?, total = ? WHERE id = ?";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param(
+                "ssdi",
+                $budget['name'],
+                $budget['semester'],
+                $budget['total'],
+                $budget['id']
+            );
+        } else {
+            // Insert new budget
+            $query = "INSERT INTO budgets (id, name, semester, total, department_id) VALUES (?, ?, ?, ?, ?)";
+            $stmt = $conn->prepare($query);
+            $stmt->bind_param(
+                "issdi",
+                $budget['id'],
+                $budget['name'],
+                $budget['semester'],
+                $budget['total'],
+                $budget['department_id']
+            );
+        }
+        $stmt->execute();
+    }
+
+    echo json_encode(['message' => 'Budgets saved successfully']);
+}
+
+// Route handling
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id'])) {
+    $departmentId = intval($_GET['department_id']);
     fetchBudgetsByDepartment($departmentId);
-} elseif ($requestMethod === 'POST' && strpos($requestUri, '/api/budgets') === 0) {
-    updateSpecificBudgets($input);
+} elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    if (isset($input['budgets'])) {
+        saveBudgets($input['budgets']);
+    } else {
+        http_response_code(400); // Bad Request
+        echo json_encode(['message' => 'Invalid input data']);
+    }
 } else {
     http_response_code(404); // Not Found
     echo json_encode(['message' => 'Endpoint not found']);
 }
 
-// Function to fetch budgets by department_id
-function fetchBudgetsByDepartment($departmentId) {
-    global $db; // Use the global database connection
-
-    if (!$departmentId) {
-        http_response_code(400); // Bad Request
-        echo json_encode(['message' => 'department_id is required']);
-        return;
-    }
-
-    $query = "SELECT id, name, total, details FROM budgets WHERE department_id = ?";
-    $stmt = $db->prepare($query);
-
-    if ($stmt) {
-        $stmt->bind_param('i', $departmentId);
-        $stmt->execute();
-        $result = $stmt->get_result();
-
-        $budgets = [];
-        while ($row = $result->fetch_assoc()) {
-            $budgets[] = $row;
-        }
-
-        http_response_code(200); // OK
-        echo json_encode(['budgets' => $budgets]);
-    } else {
-        http_response_code(500); // Internal Server Error
-        echo json_encode(['message' => 'Failed to fetch budgets', 'error' => $db->error]);
-    }
-}
-
-// Function to update specific budgets by budget_id
-function updateSpecificBudgets($input) {
-    global $db; // Use the global database connection
-
-    if (!isset($input['budgets']) || !is_array($input['budgets'])) {
-        http_response_code(400); // Bad Request
-        echo json_encode(['message' => 'Invalid input data']);
-        return;
-    }
-
-    foreach ($input['budgets'] as $budget) {
-        if (empty($budget['id']) || empty($budget['name']) || empty($budget['total']) || !is_numeric($budget['total'])) {
-            http_response_code(400); // Bad Request
-            echo json_encode(['message' => 'Invalid budget data']);
-            return;
-        }
-
-        $id = $budget['id'];
-        $name = $budget['name'];
-        $total = $budget['total'];
-        $details = isset($budget['details']) ? json_encode($budget['details']) : null;
-
-        $query = "UPDATE budgets SET name = ?, total = ?, details = ? WHERE id = ?";
-        $stmt = $db->prepare($query);
-
-        if ($stmt) {
-            $stmt->bind_param('sdsi', $name, $total, $details, $id);
-
-            if (!$stmt->execute()) {
-                http_response_code(500); // Internal Server Error
-                echo json_encode(['message' => 'Failed to update budget', 'error' => $stmt->error]);
-                return;
-            }
-
-            $stmt->close();
-        } else {
-            http_response_code(500); // Internal Server Error
-            echo json_encode(['message' => 'Failed to prepare statement', 'error' => $db->error]);
-            return;
-        }
-    }
-
-    http_response_code(200); // OK
-    echo json_encode(['message' => 'Budgets updated successfully']);
-}
 ?>
