@@ -23,7 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require_once 'db.php';
+// Database connection
+$mysqli = require_once 'db.php';
 
 // Fetch budgets with all related data
 function fetchDetailedBudgets($departmentId, $conn) {
@@ -125,7 +126,7 @@ function fetchDetailedBudgets($departmentId, $conn) {
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id'])) {
     $departmentId = intval($_GET['department_id']);
-    fetchDetailedBudgets($departmentId, $conn);
+    fetchDetailedBudgets($departmentId, $mysqli);
 } else {
     http_response_code(404); // Not Found
     echo json_encode(['message' => 'Endpoint not found']);
