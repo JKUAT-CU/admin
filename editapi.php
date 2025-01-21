@@ -24,14 +24,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Database connection
-require_once 'db.php';
+$conn = require_once 'db.php';
 
 // Fetch budgets by department (GET)
-function fetchBudgetsByDepartment($departmentId) {
-    global $conn;
-
+function fetchBudgetsByDepartment($departmentId, $conn) {
     $query = "SELECT * FROM budgets WHERE department_id = ?";
     $stmt = $conn->prepare($query);
+
+    if (!$stmt) {
+        echo json_encode(['error' => 'Failed to prepare statement']);
+        exit;
+    }
+
     $stmt->bind_param("i", $departmentId);
     $stmt->execute();
     $result = $stmt->get_result();
@@ -48,13 +52,17 @@ function fetchBudgetsByDepartment($departmentId) {
 }
 
 // Save or update budgets (POST)
-function saveBudgets($budgets) {
-    global $conn;
-
+function saveBudgets($budgets, $conn) {
     foreach ($budgets as $budget) {
         // Check if budget already exists
         $query = "SELECT id FROM budgets WHERE id = ?";
         $stmt = $conn->prepare($query);
+
+        if (!$stmt) {
+            echo json_encode(['error' => 'Failed to prepare statement']);
+            exit;
+        }
+
         $stmt->bind_param("i", $budget['id']);
         $stmt->execute();
         $result = $stmt->get_result();
@@ -92,12 +100,12 @@ function saveBudgets($budgets) {
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id'])) {
     $departmentId = intval($_GET['department_id']);
-    fetchBudgetsByDepartment($departmentId);
+    fetchBudgetsByDepartment($departmentId, $conn);
 } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
 
     if (isset($input['budgets'])) {
-        saveBudgets($input['budgets']);
+        saveBudgets($input['budgets'], $conn);
     } else {
         http_response_code(400); // Bad Request
         echo json_encode(['message' => 'Invalid input data']);
@@ -106,5 +114,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id'])) {
     http_response_code(404); // Not Found
     echo json_encode(['message' => 'Endpoint not found']);
 }
-
 ?>

@@ -17,20 +17,31 @@ $user = $_ENV['DB_USER'] ?? null;
 $password = $_ENV['DB_PASS'] ?? null;
 $database = $_ENV['DB_NAME'] ?? null;
 
+// // Debugging: Print database connection details to ensure correct values
+// echo "DB_HOST: " . $host . "<br>";
+// echo "DB_USER: " . $user . "<br>";
+// echo "DB_NAME: " . $database . "<br>";
+
 // Validate that all required variables are loaded
 if (!$host || !$user || !$database) {
     die("Error: Missing environment variables. Please check your .env file.");
 }
 
 // Establish the MySQL connection
-$conn = new mysqli($host, $user, $password, $database);
+$mysqli = new mysqli($host, $user, $password, $database);
 
 // Check for any connection errors
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
+if ($mysqli->connect_error) {
+    die("Connection failed: " . $mysqli->connect_error);
 }
 
 // Explicitly select the database
-if (!$conn->select_db($database)) {
-    die("Database selection failed: " . $conn->error);
+if (!$mysqli->select_db($database)) {
+    die("Database selection failed: " . $mysqli->error);
 }
+
+
+
+// Return the $mysqli object for other scripts to use
+return $mysqli;
+?>
