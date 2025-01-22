@@ -1,30 +1,34 @@
 <?php
-// header('Content-Type: application/json');
+header('Content-Type: application/json');
 
-// // Allowed origins for CORS
-// $allowedOrigins = [
-//     'https://admin.jkuatcu.org',
-// ];
+// Allowed origins for CORS
+$allowedOrigins = [
+    'https://admin.jkuatcu.org',
+];
 
-// if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
-//     header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
-//     header('Access-Control-Allow-Credentials: true');
-// } else {
-//     http_response_code(403); // Forbidden
-//     echo json_encode(['message' => 'Origin not allowed']);
-//     exit;
-// }
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    http_response_code(403); // Forbidden
+    echo json_encode(['message' => 'Origin not allowed']);
+    exit;
+}
 
-// header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-// header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-//     http_response_code(200);
-//     exit;
-// }
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Include the database connection
+require 'db.php'; // Ensure this points to your db.php file where you defined the $mysqli connection
+
 // Fetch data from makueni table
-$sqlMakueni = "SELECT member_id, account_number,amount FROM makueni";
-$resultMakueni = $conn->query($sqlMakueni);
+$sqlMakueni = "SELECT member_id, account_number, amount FROM makueni";
+$resultMakueni = $mysqli->query($sqlMakueni);
 
 if ($resultMakueni->num_rows > 0) {
     $response = [];
@@ -61,7 +65,7 @@ if ($resultMakueni->num_rows > 0) {
         } else {
             // Fetch user details from cu_members table for other accounts
             $sqlUser = "SELECT first_name, surname FROM cu_members WHERE id = $memberId";
-            $resultUser = $conn->query($sqlUser);
+            $resultUser = $mysqli->query($sqlUser);
 
             if ($resultUser->num_rows > 0) {
                 $userRow = $resultUser->fetch_assoc();
@@ -104,5 +108,6 @@ if ($resultMakueni->num_rows > 0) {
     echo json_encode(['message' => 'No data found in makueni table']);
 }
 
-$conn->close();
+// Close the database connection
+$mysqli->close();
 ?>
