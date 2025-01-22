@@ -34,6 +34,7 @@ function fetchDetailedBudgets($departmentId, $conn) {
             b.semester, 
             b.grand_total, 
             b.created_at,
+            b.status,
             a.id AS asset_id,
             a.name AS asset_name,
             a.quantity AS asset_quantity,
