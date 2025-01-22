@@ -90,13 +90,13 @@ $pdfContent = file_get_contents($pdfPath);
 $mail = new PHPMailer(true);
 
 try {
-    $mail->isSMTP();
-    $mail->Host = SMTP_HOST;
-    $mail->SMTPAuth = true;
-    $mail->Username = SMTP_USER;
-    $mail->Password = SMTP_PASS;
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-    $mail->Port = SMTP_PORT;
+    $mail->isSMTP();                                            // Send using SMTP
+    $mail->Host       = 'mail.jkuatcu.org';                     // Set the SMTP server to send through
+    $mail->SMTPAuth   = true;                                   // Enable SMTP authentication
+    $mail->Username   = 'reset@jkuatcu.org';                   // SMTP username
+    $mail->Password   = '8&+cqTnOa!A5';                         // SMTP password
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
+    $mail->Port       = 465;    fin
 
     $mail->setFrom('no-reply@jkuatcu.org', 'JKUATCU System');
     $mail->addAddress(FINANCE_EMAIL, 'Finance Department');
