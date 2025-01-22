@@ -72,27 +72,22 @@ function handleEditSubmission($input)
     $mysqli->begin_transaction();
 
     try {
-        // Update budget in `budgets` table
-        $query = "UPDATE budgets SET semester = ?, grand_total = ?, created_at = NOW() WHERE id = ?";
+        // Create a new budget record (instead of updating the existing one)
+        $query = "INSERT INTO budgets (department_id, semester, grand_total, created_at) 
+                  SELECT department_id, ?, ?, NOW() FROM budgets WHERE id = ?";
         $stmt = $mysqli->prepare($query);
         if (!$stmt) {
-            throw new Exception('Failed to prepare budget update query');
+            throw new Exception('Failed to prepare budget insert query');
         }
 
         $stmt->bind_param('sdi', $semester, $grandTotal, $budget_id);
         $stmt->execute();
+
+        // Get the ID of the newly inserted budget
+        $newBudgetId = $stmt->insert_id;
         $stmt->close();
 
-        // Update assets in `assets` table (delete old, add new)
-        $deleteAssetQuery = "DELETE FROM assets WHERE budget_id = ?";
-        $deleteAssetStmt = $mysqli->prepare($deleteAssetQuery);
-        if (!$deleteAssetStmt) {
-            throw new Exception('Failed to prepare asset delete query');
-        }
-        $deleteAssetStmt->bind_param('i', $budget_id);
-        $deleteAssetStmt->execute();
-        $deleteAssetStmt->close();
-
+        // Insert assets into `assets` table for the new budget
         $assetQuery = "INSERT INTO assets (budget_id, name, quantity, price) VALUES (?, ?, ?, ?)";
         $assetStmt = $mysqli->prepare($assetQuery);
         if (!$assetStmt) {
@@ -103,22 +98,12 @@ function handleEditSubmission($input)
             $name = $mysqli->real_escape_string($asset['name']);
             $quantity = (int)$asset['quantity'];
             $price = (float)$asset['price'];
-            $assetStmt->bind_param('isid', $budget_id, $name, $quantity, $price);
+            $assetStmt->bind_param('isid', $newBudgetId, $name, $quantity, $price);
             $assetStmt->execute();
         }
         $assetStmt->close();
 
-        // Update events in `events` table (delete old, add new)
-        $deleteEventQuery = "DELETE FROM events WHERE budget_id = ?";
-        $deleteEventStmt = $mysqli->prepare($deleteEventQuery);
-        if (!$deleteEventStmt) {
-            throw new Exception('Failed to prepare event delete query');
-        }
-        $deleteEventStmt->bind_param('i', $budget_id);
-        $deleteEventStmt->execute();
-        $deleteEventStmt->close();
-
-        // Insert new events and event items
+        // Insert events into `events` table for the new budget
         $eventQuery = "INSERT INTO events (budget_id, name, attendance) VALUES (?, ?, ?)";
         $eventStmt = $mysqli->prepare($eventQuery);
         if (!$eventStmt) {
@@ -134,7 +119,7 @@ function handleEditSubmission($input)
         foreach ($events as $event) {
             $eventName = $mysqli->real_escape_string($event['name']);
             $attendance = (int)$event['attendance'];
-            $eventStmt->bind_param('isi', $budget_id, $eventName, $attendance);
+            $eventStmt->bind_param('isi', $newBudgetId, $eventName, $attendance);
             $eventStmt->execute();
 
             // Get the ID of the newly inserted event
@@ -156,7 +141,7 @@ function handleEditSubmission($input)
         // Commit the transaction
         $mysqli->commit();
 
-        echo json_encode(['message' => 'Budget updated successfully']);
+        echo json_encode(['message' => 'Budget updated with new entries successfully']);
     } catch (Exception $e) {
         // Rollback transaction on failure
         $mysqli->rollback();
