@@ -76,6 +76,7 @@ function fetchDetailedBudgets($departmentId, $conn) {
                 'semester' => $row['semester'],
                 'grand_total' => $row['grand_total'],
                 'created_at' => $row['created_at'],
+                'status'=> $row['status']
                 'assets' => [],
                 'events' => [],
             ];
