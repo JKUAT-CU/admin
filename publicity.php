@@ -1,5 +1,5 @@
 <?php
-require 'publictydb.php'; // Include your database connection
+require 'publicitydb.php'; // Include your database connection
 
 // Mapping of account numbers to department names
 $accountMapping = [
