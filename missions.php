@@ -27,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 require 'missionsdb.php'; // Ensure this points to your db.php file where you defined the $mysqli connection
 
 // Fetch data from makueni table
-$sqlMakueni = "SELECT member_id, account_number, amount FROM makueni";
+$sqlMakueni = "SELECT member_id, account_number, created_at, amount FROM makueni";
 $resultMakueni = $mysqli->query($sqlMakueni);
 
 if ($resultMakueni->num_rows > 0) {
@@ -36,6 +36,7 @@ if ($resultMakueni->num_rows > 0) {
     while ($makueniRow = $resultMakueni->fetch_assoc()) {
         $memberId = $makueniRow['member_id'];
         $accountNumber = $makueniRow['account_number'];
+        $createdAt = $makueniRow['created_at']; // Get the created_at field
 
         // Convert account_number to lowercase for case-insensitive comparison
         $accountNumberLower = strtolower($accountNumber);
@@ -103,12 +104,13 @@ if ($resultMakueni->num_rows > 0) {
             }
         }
 
-        // Add both summed total and detailed transactions to the response
+        // Add both summed total and detailed transactions to the response, including created_at
         $response[] = [
             'member_id' => strval($memberId), // Ensure member_id is a string
             'account_number' => $accountNumber,
             'first_name' => $firstName,
             'last_name' => $lastName,
+            'created_at' => $createdAt, // Include created_at
             'total_amount' => $totalAmount,
             'transactions' => $transactions // Add detailed transaction info
         ];
