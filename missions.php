@@ -80,6 +80,8 @@ if ($resultMakueni->num_rows > 0) {
 
         // If file_get_contents() fails, handle error
         $totalAmount = 0;
+        $transactions = []; // To store detailed transaction info
+
         if ($transactionData !== FALSE) {
             $transactionArray = json_decode($transactionData, true);
 
@@ -87,19 +89,28 @@ if ($resultMakueni->num_rows > 0) {
                 // Loop through the API response and sum up TransAmount where BillRefNumber matches account_number
                 foreach ($transactionArray as $transaction) {
                     if (strtolower($transaction['BillRefNumber']) === $accountNumberLower) {
+                        // Sum the TransAmount
                         $totalAmount += (float) $transaction['TransAmount'];
+
+                        // Add detailed transaction info to the transactions array
+                        $transactions[] = [
+                            'trans_time' => $transaction['TransTime'],
+                            'trans_amount' => $transaction['TransAmount'],
+                            'bill_ref_number' => $transaction['BillRefNumber']
+                        ];
                     }
                 }
             }
         }
 
-        // Add data to response
+        // Add both summed total and detailed transactions to the response
         $response[] = [
             'member_id' => $memberId,
             'account_number' => $accountNumber,
             'first_name' => $firstName,
             'last_name' => $lastName,
-            'total_amount' => $totalAmount
+            'total_amount' => $totalAmount,
+            'transactions' => $transactions // Add detailed transaction info
         ];
     }
 
