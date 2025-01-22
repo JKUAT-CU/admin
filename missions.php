@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // Include the database connection
-require 'db.php'; // Ensure this points to your db.php file where you defined the $mysqli connection
+require 'missionsdb.php'; // Ensure this points to your db.php file where you defined the $mysqli connection
 
 // Fetch data from makueni table
 $sqlMakueni = "SELECT member_id, account_number, amount FROM makueni";
