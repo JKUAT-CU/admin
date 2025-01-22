@@ -1,27 +1,27 @@
 <?php
-// header('Content-Type: application/json');
+header('Content-Type: application/json');
 
-// // Allowed origins for CORS
-// $allowedOrigins = [
-//     'https://admin.jkuatcu.org',
-// ];
+// Allowed origins for CORS
+$allowedOrigins = [
+    'https://admin.jkuatcu.org',
+];
 
-// if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
-//     header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
-//     header('Access-Control-Allow-Credentials: true');
-// } else {
-//     http_response_code(403); // Forbidden
-//     echo json_encode(['message' => 'Origin not allowed']);
-//     exit;
-// }
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    http_response_code(403); // Forbidden
+    echo json_encode(['message' => 'Origin not allowed']);
+    exit;
+}
 
-// header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-// header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
 
-// if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-//     http_response_code(200);
-//     exit;
-// }
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // Include the database connection
 require 'missionsdb.php'; // Ensure this points to your db.php file where you defined the $mysqli connection
@@ -105,7 +105,7 @@ if ($resultMakueni->num_rows > 0) {
 
         // Add both summed total and detailed transactions to the response
         $response[] = [
-            'member_id' => $memberId,
+            'member_id' => strval($memberId), // Ensure member_id is a string
             'account_number' => $accountNumber,
             'first_name' => $firstName,
             'last_name' => $lastName,
