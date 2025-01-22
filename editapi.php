@@ -1,12 +1,8 @@
 <?php
 header('Content-Type: application/json');
 
-// CORS configuration
-$allowed_origins = [
-    'https://admin.jkuatcu.org',
-];
-
-if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+$allowedOrigins = ['https://admin.jkuatcu.org'];
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
     header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
     header('Access-Control-Allow-Credentials: true');
 } else {
@@ -15,81 +11,91 @@ if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed
     exit;
 }
 
-header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
-
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit;
-}
-
-// Include PHPMailer and DB files
+require 'db.php';
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 require 'vendor/autoload.php';
-include 'db.php';
 
-// Check database connection
-if ($mysqli->connect_error) {
-    die("Connection failed: " . $mysqli->connect_error);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['message' => 'Invalid request method']);
+    exit;
 }
 
-// Check if the request method is POST
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Retrieve form data
-    $department_id = $_POST['department_id'] ?? null;
-    $semester = $_POST['semester'] ?? '2025';
-    $finance_email = 'finance@jkuatcu.org';
-    $department_name = "Department {$department_id}"; // You can pull this info from your DB if needed
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input || !isset($input['department_id'])) {
+    http_response_code(400);
+    echo json_encode(['message' => 'Invalid input']);
+    exit;
+}
 
-    // Validate the PDF file upload
-    if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
-        echo json_encode(['message' => 'Invalid PDF upload.']);
-        http_response_code(400);
-        exit;
+$department_id = (int)$input['department_id'];
+
+// Fetch department name
+$queryDept = "SELECT name FROM departments WHERE id = ?";
+$stmtDept = $mysqli->prepare($queryDept);
+if (!$stmtDept) {
+    http_response_code(500);
+    echo json_encode(['message' => 'Database error: ' . $mysqli->error]);
+    exit;
+}
+$stmtDept->bind_param('i', $department_id);
+$stmtDept->execute();
+$stmtDept->bind_result($departmentName);
+if (!$stmtDept->fetch()) {
+    http_response_code(404);
+    echo json_encode(['message' => 'Department not found']);
+    exit;
+}
+$stmtDept->close();
+
+// Fetch user emails
+$queryUsers = "SELECT email FROM users WHERE department_id = ?";
+$stmtUsers = $mysqli->prepare($queryUsers);
+if (!$stmtUsers) {
+    http_response_code(500);
+    echo json_encode(['message' => 'Database error: ' . $mysqli->error]);
+    exit;
+}
+$stmtUsers->bind_param('i', $department_id);
+$stmtUsers->execute();
+$result = $stmtUsers->get_result();
+$userEmails = [];
+while ($row = $result->fetch_assoc()) {
+    $userEmails[] = $row['email'];
+}
+$stmtUsers->close();
+
+if (empty($userEmails)) {
+    http_response_code(404);
+    echo json_encode(['message' => 'No users found in the department']);
+    exit;
+}
+
+// Send email
+$mail = new PHPMailer(true);
+try {
+    $mail->isSMTP();
+    $mail->Host = 'mail.jkuatcu.org';
+    $mail->SMTPAuth = true;
+    $mail->Username = 'reset@jkuatcu.org';
+    $mail->Password = '8&+cqTnOa!A5';
+    $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+    $mail->Port = 465;
+
+    $mail->setFrom('sender@jkuatcu.org', 'JKUATCU System');
+    foreach ($userEmails as $email) {
+        $mail->addAddress($email);
     }
 
-    // Retrieve the uploaded PDF content
-    $pdfPath = $_FILES['pdf']['tmp_name'];
-    $pdfContent = file_get_contents($pdfPath);
+    $mail->Subject = "Important Update for {$departmentName}";
+    $mail->Body = "Dear {$departmentName} members,\n\nThis is an important notification.\n\nBest Regards,\nJKUATCU System";
 
-    // Create a PHPMailer instance to send email
-    $mail = new PHPMailer(true);
-
-    try {
-        // Server settings
-        $mail->isSMTP();
-        $mail->Host = 'mail.jkuatcu.org'; // SMTP server
-        $mail->SMTPAuth = true;
-        $mail->Username = 'reset@jkuatcu.org'; // SMTP username
-        $mail->Password = '8&+cqTnOa!A5'; // SMTP password
-        $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        $mail->Port = 465;
-
-        // Sender and recipient
-        $mail->setFrom('sender@jkuatcu.org', 'JKUATCU System');
-        $mail->addAddress($finance_email, 'Finance Department'); // Finance department
-
-        // Attach the PDF file
-        $mail->addStringAttachment($pdfContent, "Budget_{$department_name}_{$semester}.pdf");
-
-        // Email subject and body
-        $mail->Subject = "Budget Submission - {$department_name} ({$semester})";
-        $mail->Body = "Dear Finance,\n\nThe budget for {$department_name} for the semester {$semester} has been submitted.\n\nBest Regards,\nJKUATCU System";
-
-        // Send the email
-        $mail->send();
-
-        // Respond with success
-        echo json_encode(['message' => 'Budget submitted and emailed successfully.']);
-        http_response_code(200);
-    } catch (Exception $e) {
-        // Respond with error if email fails
-        echo json_encode(['message' => "Failed to send email. Error: {$mail->ErrorInfo}"]);
-        http_response_code(500);
-    }
-} else {
-    echo json_encode(['message' => 'Invalid request method']);
-    http_response_code(405);
+    $mail->send();
+    echo json_encode(['message' => 'Email sent successfully']);
+    http_response_code(200);
+} catch (Exception $e) {
+    echo json_encode(['message' => 'Email sending failed', 'error' => $mail->ErrorInfo]);
+    http_response_code(500);
 }
 ?>
