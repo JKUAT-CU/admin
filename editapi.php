@@ -31,7 +31,7 @@ $mysqli = require_once 'db.php';
 function getUserEmail($departmentId) {
     global $mysqli;
 
-    $query = "SELECT email FROM users WHERE deaprtment_id = ?";
+    $query = "SELECT email FROM users WHERE department_id = ?";
     $stmt = $mysqli->prepare($query);
     if (!$stmt) {
         throw new Exception("Failed to prepare email query");
