@@ -1,6 +1,7 @@
 <?php
 header('Content-Type: application/json');
 
+// Allow only specific origins
 $allowedOrigins = ['https://admin.jkuatcu.org'];
 if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
     header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
@@ -22,14 +23,39 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
-if (!$input || !isset($input['department_id'])) {
+// Handle the incoming form data
+$department_id = isset($_POST['department_id']) ? (int)$_POST['department_id'] : null;
+$budget_id = isset($_POST['budget_id']) ? (int)$_POST['budget_id'] : null;
+$semester = isset($_POST['semester']) ? $_POST['semester'] : null;
+$grandTotal = isset($_POST['grandTotal']) ? (float)$_POST['grandTotal'] : null;
+
+// Parse assets and events from JSON strings
+$assets = isset($_POST['assets']) ? json_decode($_POST['assets'], true) : [];
+$events = isset($_POST['events']) ? json_decode($_POST['events'], true) : [];
+
+// Check for uploaded file
+if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
     http_response_code(400);
-    echo json_encode(['message' => 'Invalid input']);
+    echo json_encode(['message' => 'PDF file is required']);
+    exit;
+}
+$pdfFile = $_FILES['pdf'];
+$uploadDir = '/path/to/upload/directory/'; // Update with your actual path
+$pdfPath = $uploadDir . basename($pdfFile['name']);
+
+// Save the uploaded PDF file
+if (!move_uploaded_file($pdfFile['tmp_name'], $pdfPath)) {
+    http_response_code(500);
+    echo json_encode(['message' => 'Failed to upload PDF']);
     exit;
 }
 
-$department_id = (int)$input['department_id'];
+// Validate department ID
+if (!$department_id) {
+    http_response_code(400);
+    echo json_encode(['message' => 'Department ID is required']);
+    exit;
+}
 
 // Fetch department name
 $queryDept = "SELECT name FROM departments WHERE id = ?";
@@ -72,7 +98,7 @@ if (empty($userEmails)) {
     exit;
 }
 
-// Send email
+// Send email with the PDF file as an attachment
 $mail = new PHPMailer(true);
 try {
     $mail->isSMTP();
@@ -90,6 +116,9 @@ try {
 
     $mail->Subject = "Important Update for {$departmentName}";
     $mail->Body = "Dear {$departmentName} members,\n\nThis is an important notification.\n\nBest Regards,\nJKUATCU System";
+
+    // Attach the uploaded PDF file
+    $mail->addAttachment($pdfPath);
 
     $mail->send();
     echo json_encode(['message' => 'Email sent successfully']);
