@@ -164,7 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
-    handleBudgetSubmission($input);
+    handleEditSubmission($input);
 } else {
     http_response_code(405); // Method not allowed
     echo json_encode(['message' => 'Invalid request method']);
