@@ -96,8 +96,7 @@ try {
     $mail->Username   = 'reset@jkuatcu.org';                   // SMTP username
     $mail->Password   = '8&+cqTnOa!A5';                         // SMTP password
     $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;            // Enable implicit TLS encryption
-    $mail->Port       = 465;    fin
-
+    $mail->Port       = 465;    
     $mail->setFrom('no-reply@jkuatcu.org', 'JKUATCU System');
     $mail->addAddress(FINANCE_EMAIL, 'Finance Department');
     $mail->addStringAttachment($pdfContent, "Budget_{$departmentName}_2025.pdf");
