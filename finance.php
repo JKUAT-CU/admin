@@ -25,26 +25,20 @@
 
 require_once 'db.php';
 
-// Fetch and display all budgets with their associated details
 function fetchAllBudgets()
 {
     global $mysqli; // Use the global database connection
 
     $query = "
         SELECT 
-            b.id AS budget_id, 
-            b.department_id, 
-            b.semester, 
-            b.grand_total, 
-            b.created_at, 
-            d.name AS department_name,
-            GROUP_CONCAT(DISTINCT CONCAT(a.name, ':', a.quantity, ':', a.price)) AS assets,
-            GROUP_CONCAT(DISTINCT CONCAT(e.name, ':', e.attendance)) AS events
+            b.id AS budget_id,
+            b.department_id,
+            b.semester,
+            b.grand_total,
+            b.created_at,
+            d.name AS department_name
         FROM budgets b
         LEFT JOIN departments d ON b.department_id = d.id
-        LEFT JOIN assets a ON b.id = a.budget_id
-        LEFT JOIN events e ON b.id = e.budget_id
-        GROUP BY b.id
     ";
 
     $result = $mysqli->query($query);
@@ -53,45 +47,73 @@ function fetchAllBudgets()
         $budgets = [];
 
         while ($row = $result->fetch_assoc()) {
-            // Parse assets and events into structured arrays
+            $budgetId = (int)$row['budget_id'];
+
+            // Fetch associated assets for this budget
+            $assetQuery = "
+                SELECT name, quantity, price
+                FROM assets
+                WHERE budget_id = $budgetId
+            ";
+            $assetResult = $mysqli->query($assetQuery);
             $assets = [];
-            if (!empty($row['assets'])) {
-                foreach (explode(',', $row['assets']) as $asset) {
-                    [$name, $quantity, $price] = explode(':', $asset);
-                    $assets[] = [
-                        'name' => $name,
-                        'quantity' => (int)$quantity,
-                        'price' => (float)$price
-                    ];
-                }
+            while ($assetRow = $assetResult->fetch_assoc()) {
+                $assets[] = [
+                    'name' => $assetRow['name'],
+                    'quantity' => (int)$assetRow['quantity'],
+                    'price' => (float)$assetRow['price']
+                ];
             }
 
+            // Fetch associated events for this budget
+            $eventQuery = "
+                SELECT id AS event_id, name, attendance
+                FROM events
+                WHERE budget_id = $budgetId
+            ";
+            $eventResult = $mysqli->query($eventQuery);
             $events = [];
-            if (!empty($row['events'])) {
-                foreach (explode(',', $row['events']) as $event) {
-                    [$name, $attendance] = explode(':', $event);
-                    $events[] = [
-                        'name' => $name,
-                        'attendance' => (int)$attendance
+            while ($eventRow = $eventResult->fetch_assoc()) {
+                $eventId = (int)$eventRow['event_id'];
+
+                // Fetch items for this event
+                $itemQuery = "
+                    SELECT name, quantity, price
+                    FROM event_items
+                    WHERE event_id = $eventId
+                ";
+                $itemResult = $mysqli->query($itemQuery);
+                $items = [];
+                while ($itemRow = $itemResult->fetch_assoc()) {
+                    $items[] = [
+                        'name' => $itemRow['name'],
+                        'quantity' => (int)$itemRow['quantity'],
+                        'price' => (float)$itemRow['price']
                     ];
                 }
+
+                $events[] = [
+                    'name' => $eventRow['name'],
+                    'attendance' => (int)$eventRow['attendance'],
+                    'items' => $items
+                ];
             }
 
-            // Build the response structure
+            // Construct the budget structure
             $budgets[] = [
-                'budget_id' => (int)$row['budget_id'],
+                'budget_id' => $budgetId,
                 'department_id' => (int)$row['department_id'],
                 'department_name' => $row['department_name'],
                 'semester' => $row['semester'],
                 'grand_total' => (float)$row['grand_total'],
                 'created_at' => $row['created_at'],
                 'assets' => $assets,
-                'events' => $events,
+                'events' => $events
             ];
         }
 
         http_response_code(200); // OK
-        echo json_encode(['budgets' => $budgets]);
+        echo json_encode(['budgets' => $budgets], JSON_PRETTY_PRINT);
     } else {
         http_response_code(500); // Internal Server Error
         echo json_encode(['message' => 'Failed to fetch budgets', 'error' => $mysqli->error]);
