@@ -70,7 +70,6 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
     echo json_encode(['budgets' => $budgets]);
 }
 
-// Fetch budgets by department_id and semester
 function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
     $query = "
         WITH LatestBudgets AS (
@@ -98,35 +97,28 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
             lb.created_at, 
             lb.status, 
             lb.department_id,
+            d.name AS department_name,
             JSON_ARRAYAGG(
-                CASE 
-                    WHEN e.id IS NOT NULL THEN JSON_OBJECT(
-                        'event_id', e.id, 
-                        'event_name', e.name, 
-                        'attendance', e.attendance, 
-                        'event_total_cost', e.total_cost
-                    )
-                    ELSE NULL
-                END
-            ) AS events,
+                JSON_OBJECT(
+                    'name', a.name, 
+                    'quantity', a.quantity, 
+                    'price', a.price
+                )
+            ) AS assets,
             JSON_ARRAYAGG(
-                CASE 
-                    WHEN a.id IS NOT NULL THEN JSON_OBJECT(
-                        'asset_id', a.id, 
-                        'asset_name', a.name, 
-                        'quantity', a.quantity, 
-                        'cost_per_item', a.price, 
-                        'total_cost', a.total_cost
-                    )
-                    ELSE NULL
-                END
-            ) AS assets
+                JSON_OBJECT(
+                    'name', e.name, 
+                    'attendance', e.attendance, 
+                    'total_cost', e.total_cost
+                )
+            ) AS events
         FROM 
             LatestBudgets lb
-        LEFT JOIN events e ON e.budget_id = lb.budget_id
+        JOIN departments d ON lb.department_id = d.id
         LEFT JOIN assets a ON a.budget_id = lb.budget_id
+        LEFT JOIN events e ON e.budget_id = lb.budget_id
         GROUP BY 
-            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id
+            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
         ORDER BY 
             lb.created_at DESC;
     ";
@@ -144,6 +136,8 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
 
     $budgets = [];
     while ($row = $result->fetch_assoc()) {
+        $row['assets'] = json_decode($row['assets'], true);
+        $row['events'] = json_decode($row['events'], true);
         $budgets[] = $row;
     }
 
