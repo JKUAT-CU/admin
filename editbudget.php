@@ -89,8 +89,48 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
                 WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
             )
         )
-        SELECT * FROM LatestBudgets
-        ORDER BY created_at DESC
+        SELECT 
+            lb.budget_id, 
+            lb.semester, 
+            lb.grand_total, 
+            lb.created_at, 
+            lb.status, 
+            lb.department_id,
+            COALESCE(
+                JSON_ARRAYAGG(
+                    CASE 
+                        WHEN e.id IS NOT NULL THEN JSON_OBJECT(
+                            'event_id', e.id, 
+                            'event_name', e.name, 
+                            'attendance', e.attendance, 
+                            'event_total_cost', e.total_cost
+                        )
+                        ELSE NULL
+                    END
+                ), '[]'
+            ) AS events,
+            COALESCE(
+                JSON_ARRAYAGG(
+                    CASE 
+                        WHEN a.id IS NOT NULL THEN JSON_OBJECT(
+                            'asset_id', a.id, 
+                            'asset_name', a.name, 
+                            'quantity', a.quantity, 
+                            'cost_per_item', a.price, 
+                            'total_cost', a.total_cost
+                        )
+                        ELSE NULL
+                    END
+                ), '[]'
+            ) AS assets
+        FROM 
+            LatestBudgets lb
+        LEFT JOIN events e ON e.budget_id = lb.budget_id
+        LEFT JOIN assets a ON a.budget_id = lb.budget_id
+        GROUP BY 
+            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id
+        ORDER BY 
+            lb.created_at DESC;
     ";
 
     $stmt = $conn->prepare($query);
