@@ -13,7 +13,7 @@ if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed
     exit;
 }
 
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
@@ -77,10 +77,19 @@ function updatePassword($mysqli, $email, $password) {
 /**
  * Handle Password Reset
  */
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'], $_POST['token'])) {
-    $password = $_POST['password'];
-    $confirmPassword = $_POST['confirm_password'];
-    $token = $_POST['token'];
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $input = json_decode(file_get_contents('php://input'), true);
+
+    // Check if the required fields are present
+    if (!isset($input['password'], $input['confirm_password'], $input['token'])) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Missing required fields.']);
+        exit();
+    }
+
+    $password = $input['password'];
+    $confirmPassword = $input['confirm_password'];
+    $token = $input['token'];
 
     try {
         if ($password !== $confirmPassword) {
