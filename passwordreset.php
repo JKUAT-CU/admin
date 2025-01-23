@@ -32,7 +32,7 @@ define('SMTP_PASSWORD', '8&+cqTnOa!A5');
 define('SMTP_PORT', 465);
 
 /**
- * Function to generate a secure random token
+ * Generate a secure random token
  * @return string
  */
 function generateToken() {
@@ -49,6 +49,7 @@ function generateToken() {
 function storeToken($mysqli, $email) {
     $token = generateToken();
     $expiry = date('Y-m-d H:i:s', strtotime('+1 hour'));
+
     $query = "INSERT INTO password_resets (email, token, created_at, expiry) VALUES (?, ?, NOW(), ?)";
     $stmt = $mysqli->prepare($query);
     if ($stmt) {
@@ -61,55 +62,6 @@ function storeToken($mysqli, $email) {
 }
 
 /**
- * Validate the reset token
- * @param mysqli $mysqli
- * @param string $token
- * @return string
- * @throws Exception
- */
-function validateToken($mysqli, $token) {
-    $query = "SELECT email, expiry FROM password_resets WHERE token = ?";
-    $stmt = $mysqli->prepare($query);
-    if ($stmt) {
-        $stmt->bind_param('s', $token);
-        $stmt->execute();
-        $stmt->bind_result($email, $expiry);
-        if ($stmt->fetch()) {
-            $stmt->close();
-            if (new DateTime() > new DateTime($expiry)) {
-                throw new Exception('Token has expired.');
-            }
-            return $email;
-        }
-        throw new Exception('Invalid token.');
-    }
-    throw new Exception('Failed to validate token.');
-}
-
-/**
- * Update the user's password in the database
- * @param mysqli $mysqli
- * @param string $email
- * @param string $password
- * @throws Exception
- */
-function updatePassword($mysqli, $email, $password) {
-    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-    $query = "UPDATE users SET password = ? WHERE email = ?";
-    $stmt = $mysqli->prepare($query);
-    if ($stmt) {
-        $stmt->bind_param('ss', $hashedPassword, $email);
-        $stmt->execute();
-        if ($stmt->affected_rows === 0) {
-            throw new Exception('Password update failed.');
-        }
-        $stmt->close();
-    } else {
-        throw new Exception('Database error: ' . $mysqli->error);
-    }
-}
-
-/**
  * Send a reset email with the token
  * @param string $email
  * @param string $token
@@ -118,8 +70,9 @@ function updatePassword($mysqli, $email, $password) {
 function sendResetEmail($email, $token) {
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
     try {
-        $resetLink = "https://admin.jkuatcu.org/reset?token=$token";
+        $resetLink = "https://admin.jkuatcu.org/reset-password?token=$token";
 
+        // SMTP server configuration
         $mail->isSMTP();
         $mail->Host = SMTP_HOST;
         $mail->SMTPAuth = true;
@@ -128,6 +81,7 @@ function sendResetEmail($email, $token) {
         $mail->SMTPSecure = PHPMailer\PHPMailer\PHPMailer::ENCRYPTION_SMTPS;
         $mail->Port = SMTP_PORT;
 
+        // Email settings
         $mail->setFrom(SMTP_USERNAME, 'JKUATCU');
         $mail->addAddress($email);
         $mail->isHTML(true);
@@ -146,49 +100,32 @@ function sendResetEmail($email, $token) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['email'])) {
     $email = filter_var($_POST['email'], FILTER_SANITIZE_EMAIL);
     try {
+        // Validate email format
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw new Exception('Invalid email format.');
         }
 
+        // Check if email exists in the database
         $query = "SELECT email FROM users WHERE email = ?";
         $stmt = $mysqli->prepare($query);
-        $stmt->bind_param('s', $email);
-        $stmt->execute();
-        $stmt->store_result();
+        if ($stmt) {
+            $stmt->bind_param('s', $email);
+            $stmt->execute();
+            $stmt->store_result();
 
-        if ($stmt->num_rows === 0) {
-            throw new Exception('No user found with that email.');
+            if ($stmt->num_rows === 0) {
+                throw new Exception('No user found with that email.');
+            }
+            $stmt->close();
+
+            // Generate and store token, then send the email
+            $token = storeToken($mysqli, $email);
+            sendResetEmail($email, $token);
+
+            echo json_encode(['message' => 'Password reset instructions sent.']);
+        } else {
+            throw new Exception('Database query failed.');
         }
-        $stmt->close();
-
-        $token = storeToken($mysqli, $email);
-        sendResetEmail($email, $token);
-
-        echo json_encode(['message' => 'Password reset instructions sent.']);
-    } catch (Exception $e) {
-        http_response_code(400);
-        echo json_encode(['error' => $e->getMessage()]);
-    }
-    exit();
-}
-
-/**
- * Handle Password Reset
- */
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['password'], $_POST['token'])) {
-    $password = $_POST['password'];
-    $confirmPassword = $_POST['confirm_password'];
-    $token = $_POST['token'];
-
-    try {
-        if ($password !== $confirmPassword) {
-            throw new Exception('Passwords do not match.');
-        }
-
-        $email = validateToken($mysqli, $token);
-        updatePassword($mysqli, $email, $password);
-
-        echo json_encode(['message' => 'Password reset successful.']);
     } catch (Exception $e) {
         http_response_code(400);
         echo json_encode(['error' => $e->getMessage()]);
