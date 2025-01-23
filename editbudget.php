@@ -70,7 +70,6 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
     echo json_encode(['budgets' => $budgets]);
 }
 
-// Fetch budgets by department_id and semester
 function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
     $query = "
         WITH LatestBudgets AS (
@@ -104,7 +103,7 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
                 JSON_OBJECT(
                     'event_id', e.id, 
                     'event_name', e.name, 
-                    'expected_attendees', e.expected_attendees, 
+                    'expected_attendees', e.attendees, -- Replace 'e.expected_attendees' with the correct column name
                     'event_total_cost', e.total_cost
                 )
             ) AS events,
@@ -145,24 +144,3 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
 
     echo json_encode(['budgets' => $budgets]);
 }
-
-// Route handling
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    if (isset($_GET['department_id']) && isset($_GET['semester'])) {
-        // Fetch budgets by department_id and semester
-        $departmentId = intval($_GET['department_id']);
-        $semester = $_GET['semester'];
-        fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $mysqli);
-    } elseif (isset($_GET['department_id'])) {
-        // Fetch budgets by department_id only
-        $departmentId = intval($_GET['department_id']);
-        fetchBudgetsByDepartment($departmentId, $mysqli);
-    } else {
-        http_response_code(400); // Bad Request
-        echo json_encode(['message' => 'Invalid request. department_id is required.']);
-    }
-} else {
-    http_response_code(404); // Not Found
-    echo json_encode(['message' => 'Invalid endpoint or method.']);
-}
-?>
