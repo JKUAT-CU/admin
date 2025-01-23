@@ -16,7 +16,7 @@ if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed
 }
 
 header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
@@ -35,7 +35,8 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
                 semester, 
                 grand_total, 
                 created_at, 
-                status
+                status,
+                department_id
             FROM 
                 budgets
             WHERE 
@@ -70,7 +71,7 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
 }
 
 // Fetch budgets by department_id and semester
-function fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester, $conn) {
+function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
     $query = "
         WITH LatestBudgets AS (
             SELECT 
@@ -78,7 +79,8 @@ function fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester,
                 semester, 
                 grand_total, 
                 created_at, 
-                status
+                status,
+                department_id
             FROM 
                 budgets
             WHERE 
@@ -96,32 +98,28 @@ function fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester,
             lb.created_at, 
             lb.status, 
             lb.department_id,
-            COALESCE(
-                JSON_ARRAYAGG(
-                    CASE 
-                        WHEN e.id IS NOT NULL THEN JSON_OBJECT(
-                            'event_id', e.id, 
-                            'event_name', e.name, 
-                            'attendance', e.attendance, 
-                            'event_total_cost', e.total_cost
-                        )
-                        ELSE NULL
-                    END
-                ), '[]'
+            JSON_ARRAYAGG(
+                CASE 
+                    WHEN e.id IS NOT NULL THEN JSON_OBJECT(
+                        'event_id', e.id, 
+                        'event_name', e.name, 
+                        'attendance', e.attendance, 
+                        'event_total_cost', e.total_cost
+                    )
+                    ELSE NULL
+                END
             ) AS events,
-            COALESCE(
-                JSON_ARRAYAGG(
-                    CASE 
-                        WHEN a.id IS NOT NULL THEN JSON_OBJECT(
-                            'asset_id', a.id, 
-                            'asset_name', a.name, 
-                            'quantity', a.quantity, 
-                            'cost_per_item', a.price, 
-                            'total_cost', a.total_cost
-                        )
-                        ELSE NULL
-                    END
-                ), '[]'
+            JSON_ARRAYAGG(
+                CASE 
+                    WHEN a.id IS NOT NULL THEN JSON_OBJECT(
+                        'asset_id', a.id, 
+                        'asset_name', a.name, 
+                        'quantity', a.quantity, 
+                        'cost_per_item', a.price, 
+                        'total_cost', a.total_cost
+                    )
+                    ELSE NULL
+                END
             ) AS assets
         FROM 
             LatestBudgets lb
@@ -155,14 +153,11 @@ function fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester,
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (isset($_GET['department_id']) && isset($_GET['semester'])) {
-        // Fetch budgets by department_id and semester
         $departmentId = intval($_GET['department_id']);
         $semester = $_GET['semester'];
-        fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester, $mysqli);
+        fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $mysqli);
     } elseif (isset($_GET['department_id'])) {
-        // Fetch budgets by department_id only
         $departmentId = intval($_GET['department_id']);
-        $departmentId = intval($_GET['budget_id']);
         fetchBudgetsByDepartment($departmentId, $mysqli);
     } else {
         http_response_code(400); // Bad Request
