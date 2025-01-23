@@ -99,22 +99,28 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
             lb.created_at, 
             lb.status, 
             lb.department_id,
-            JSON_ARRAYAGG(
-                JSON_OBJECT(
-                    'event_id', e.id, 
-                    'event_name', e.name, 
-                    'attendance', e.attendance, 
-                    'event_total_cost', e.total_cost
-                )
+            COALESCE(
+                JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'event_id', e.id, 
+                        'event_name', e.name, 
+                        'attendance', e.attendance, 
+                        'event_total_cost', e.total_cost
+                    )
+                ) FILTER (WHERE e.id IS NOT NULL), 
+                '[]'
             ) AS events,
-            JSON_ARRAYAGG(
-                JSON_OBJECT(
-                    'asset_id', a.id, 
-                    'asset_name', a.name, 
-                    'quantity', a.quantity, 
-                    'cost_per_item', a.price, 
-                    'total_cost', a.total_cost
-                )
+            COALESCE(
+                JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'asset_id', a.id, 
+                        'asset_name', a.name, 
+                        'quantity', a.quantity, 
+                        'cost_per_item', a.price, 
+                        'total_cost', a.total_cost
+                    )
+                ) FILTER (WHERE a.id IS NOT NULL), 
+                '[]'
             ) AS assets
         FROM 
             LatestBudgets lb
@@ -144,6 +150,7 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
 
     echo json_encode(['budgets' => $budgets]);
 }
+
 
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
