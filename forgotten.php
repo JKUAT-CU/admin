@@ -65,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Email subject and body
         $mail->Subject = "Password Reset";
-        $resetPasswordLink = "https://admin.jkuatcu.org/reset.php?token=$token";
+        $resetPasswordLink = "https://api.jkuatcu.org/reset.php?token=$token";
         $mail->Body = "Click the following link to reset your password: $resetPasswordLink";
 
         // Send email

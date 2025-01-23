@@ -2,6 +2,7 @@
 require_once 'db.php';
 
 header('Content-Type: application/json');
+session_start(); // Start the session
 
 // Handle the incoming request data
 $input = json_decode(file_get_contents('php://input'), true);
@@ -47,7 +48,7 @@ function handleLogin($input)
 
     $user = $result->fetch_assoc();
 
-    // Verify the password for the first user found
+    // Verify the password
     if (!password_verify($password, $user['password'])) {
         http_response_code(401); // Unauthorized
         echo json_encode(['message' => 'Invalid email or password']);
@@ -82,10 +83,16 @@ function handleLogin($input)
         exit;
     }
 
+    // Update session data
+    $_SESSION['authenticated'] = true;
+    $_SESSION['accounts'] = $accounts;
+    $_SESSION['currentAccount'] = $accounts[0]; // Default to the first account
+
     // Return all accounts for the email
     echo json_encode([
         'message' => 'Login successful',
-        'accounts' => $accounts
+        'accounts' => $accounts,
+        'currentAccount' => $accounts[0]
     ]);
 }
 

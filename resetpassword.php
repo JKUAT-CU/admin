@@ -1,6 +1,6 @@
 <?php
 session_start();
-include 'backend/db.php'; // Ensure this file correctly initializes $mysqli
+include 'db.php'; // Ensure this file correctly initializes $mysqli
 
 // Process password reset
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
