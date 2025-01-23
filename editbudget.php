@@ -112,7 +112,7 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
                     'asset_id', a.id, 
                     'asset_name', a.name, 
                     'quantity', a.quantity, 
-                    'cost_per_item', a.cost_per_item, 
+                    'cost_per_item', a.price, 
                     'total_cost', a.total_cost
                 )
             ) AS assets
