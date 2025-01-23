@@ -1,70 +1,102 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        .alert-container {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            z-index: 1050;
-            max-width: 300px;
-        }
-    </style>
-</head>
-<body>
-    <!-- Alert Container -->
-    <div class="alert-container" id="alertContainer"></div>
-
-    <div class="container d-flex justify-content-center align-items-center" style="min-height: 100vh;">
-    <div class="card" style="width: 30rem;">
-        <div class="card-body">
-            <h3 class="card-title text-center mb-4">Login</h3>
-            <form action="backend/login.php" method="POST" id="loginForm">
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email Address</label>
-                    <input type="email" class="form-control" id="email" name="email" required>
-                </div>
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" class="form-control" id="password" name="password" required>
-                </div>
-                <button type="button" onclick="location.href='forgot.php';" class="btn btn-link text-decoration-none mt-3" id="forgotPassword">Forgot Password?</button>
-                <button type="submit" class="btn btn-primary w-100">Login</button>
-            </form>
-        </div>
-    </div>
-</div>
+<?php
+require_once 'db.php';
 
 
-    <!-- Bootstrap JS and Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.min.js"></script>
+header('Content-Type: application/json');
+session_start(); // Start the session
 
-    <script>
-        // Example function to display alerts dynamically
-        function showAlert(message, type = "danger") {
-            const alertContainer = document.getElementById("alertContainer");
-            const alert = document.createElement("div");
-            alert.className = `alert alert-${type} alert-dismissible fade show`;
-            alert.role = "alert";
-            alert.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            `;
-            alertContainer.appendChild(alert);
+// Handle the incoming request data
+$input = json_decode(file_get_contents('php://input'), true);
+if (!$input) {
+    http_response_code(400); // Bad Request
+    echo json_encode(['message' => 'Invalid JSON payload']);
+    exit;
+}
 
-            // Auto-remove alert after 5 seconds
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
-        }
+function handleLogin($input)
+{
+    global $mysqli;
 
-        // Optional: Add validation or AJAX handling here
-    </script>
-</body>
-</html>
+    // Check if email and password are provided
+    if (!isset($input['email']) || !isset($input['password'])) {
+        http_response_code(400); // Bad Request
+        echo json_encode(['message' => 'Email and password are required']);
+        exit;
+    }
+
+    $email = $mysqli->real_escape_string($input['email']);
+    $password = $input['password'];
+
+    // Prepare SQL query to fetch user data based on email
+    $query = "SELECT id, password FROM users WHERE email = ?";
+    $stmt = $mysqli->prepare($query);
+    if (!$stmt) {
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['message' => 'Database error']);
+        exit;
+    }
+
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    // Check if user exists
+    if ($result->num_rows === 0) {
+        http_response_code(401); // Unauthorized
+        echo json_encode(['message' => 'Invalid email or password']);
+        exit;
+    }
+
+    $user = $result->fetch_assoc();
+
+    // Verify the password
+    if (!password_verify($password, $user['password'])) {
+        http_response_code(401); // Unauthorized
+        echo json_encode(['message' => 'Invalid email or password']);
+        exit;
+    }
+
+    // Fetch all accounts with the same email
+    $query = "
+        SELECT u.id AS user_id, u.email, r.name AS role_name, r.id AS role_id, 
+               d.name AS department_name, d.id AS department_id
+        FROM users u
+        LEFT JOIN roles r ON u.role_id = r.id
+        LEFT JOIN departments d ON u.department_id = d.id
+        WHERE u.email = ?
+    ";
+    $stmt = $mysqli->prepare($query);
+    if (!$stmt) {
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['message' => 'Database error']);
+        exit;
+    }
+
+    $stmt->bind_param('s', $email);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $accounts = $result->fetch_all(MYSQLI_ASSOC);
+
+    if (!$accounts) {
+        http_response_code(500); // Internal Server Error
+        echo json_encode(['message' => 'No accounts found for this email']);
+        exit;
+    }
+
+    // Update session data
+    $_SESSION['authenticated'] = true;
+    $_SESSION['accounts'] = $accounts;
+    $_SESSION['currentAccount'] = $accounts[0]; // Default to the first account
+
+    // Return all accounts for the email
+    echo json_encode([
+        'message' => 'Login successful',
+        'accounts' => $accounts,
+        'currentAccount' => $accounts[0]
+    ]);
+}
+
+// Call the function to handle login
+handleLogin($input);
+?>

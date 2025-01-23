@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 require_once 'db.php';
-require_once 'functions/login.php';
+require_once 'login.php';
 require 'vendor/autoload.php';
 
 use Dotenv\Dotenv;
