@@ -29,18 +29,25 @@ $mysqli = require_once 'db.php';
 // Fetch budgets by department_id only
 function fetchBudgetsByDepartment($departmentId, $conn) {
     $query = "
-        SELECT 
-            id AS budget_id, 
-            semester, 
-            grand_total, 
-            created_at, 
-            status
-        FROM 
-            budgets
-        WHERE 
-            department_id = ?
-        ORDER BY 
-            created_at DESC
+        WITH LatestBudgets AS (
+            SELECT 
+                id AS budget_id, 
+                semester, 
+                grand_total, 
+                created_at, 
+                status
+            FROM 
+                budgets
+            WHERE 
+                department_id = ?
+            AND created_at = (
+                SELECT MAX(created_at)
+                FROM budgets AS b2
+                WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+            )
+        )
+        SELECT * FROM LatestBudgets
+        ORDER BY created_at DESC
     ";
 
     $stmt = $conn->prepare($query);
@@ -65,18 +72,25 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
 // Fetch budgets by department_id and semester
 function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
     $query = "
-        SELECT 
-            id AS budget_id, 
-            semester, 
-            grand_total, 
-            created_at, 
-            status
-        FROM 
-            budgets
-        WHERE 
-            department_id = ? AND semester = ?
-        ORDER BY 
-            created_at DESC
+        WITH LatestBudgets AS (
+            SELECT 
+                id AS budget_id, 
+                semester, 
+                grand_total, 
+                created_at, 
+                status
+            FROM 
+                budgets
+            WHERE 
+                department_id = ? AND semester = ?
+            AND created_at = (
+                SELECT MAX(created_at)
+                FROM budgets AS b2
+                WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+            )
+        )
+        SELECT * FROM LatestBudgets
+        ORDER BY created_at DESC
     ";
 
     $stmt = $conn->prepare($query);
