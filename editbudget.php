@@ -103,7 +103,7 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
                 JSON_OBJECT(
                     'event_id', e.id, 
                     'event_name', e.name, 
-                    'expected_attendees', e.attendees, -- Replace 'e.expected_attendees' with the correct column name
+                    'ettendance', e.attendees, -- Replace 'e.expected_attendees' with the correct column name
                     'event_total_cost', e.total_cost
                 )
             ) AS events,
