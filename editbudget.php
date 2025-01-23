@@ -26,9 +26,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Database connection
 $mysqli = require_once 'db.php';
 
-// Fetch budgets with all related data
+// Fetch budgets with all related data (only latest budget per semester)
 function fetchDetailedBudgets($departmentId, $conn) {
     $query = "
+        WITH LatestBudgets AS (
+            SELECT 
+                id, semester, grand_total, created_at, status
+            FROM 
+                budgets
+            WHERE 
+                department_id = ?
+            AND 
+                created_at = (
+                    SELECT MAX(created_at)
+                    FROM budgets AS inner_b
+                    WHERE inner_b.semester = budgets.semester 
+                      AND inner_b.department_id = budgets.department_id
+                )
+        )
         SELECT 
             b.id AS budget_id, 
             b.semester, 
@@ -47,12 +62,10 @@ function fetchDetailedBudgets($departmentId, $conn) {
             ei.quantity AS item_quantity,
             ei.price AS item_price
         FROM 
-            budgets b
+            LatestBudgets b
         LEFT JOIN assets a ON b.id = a.budget_id
         LEFT JOIN events e ON b.id = e.budget_id
         LEFT JOIN event_items ei ON e.id = ei.event_id
-        WHERE 
-            b.department_id = ?
         ORDER BY b.id, e.id, ei.id
     ";
 
@@ -133,6 +146,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id'])) {
     http_response_code(404); // Not Found
     echo json_encode(['message' => 'Endpoint not found']);
 }
-
-
 ?>

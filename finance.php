@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once 'db.php';
 
-function fetchAllBudgets()
+function fetchLatestBudgets()
 {
     global $mysqli; // Use the global database connection
 
@@ -39,6 +39,12 @@ function fetchAllBudgets()
             d.name AS department_name
         FROM budgets b
         LEFT JOIN departments d ON b.department_id = d.id
+        INNER JOIN (
+            SELECT semester, MAX(created_at) AS latest_created_at
+            FROM budgets
+            GROUP BY semester
+        ) latest_budgets
+        ON b.semester = latest_budgets.semester AND b.created_at = latest_budgets.latest_created_at
     ";
 
     $result = $mysqli->query($query);
@@ -122,7 +128,7 @@ function fetchAllBudgets()
 
 // Process GET request to fetch budgets
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    fetchAllBudgets();
+    fetchLatestBudgets();
 } else {
     http_response_code(405); // Method Not Allowed
     echo json_encode(['message' => 'Invalid request method']);
