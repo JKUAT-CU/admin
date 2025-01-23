@@ -26,8 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Database connection
 $mysqli = require_once 'db.php';
 
-// Fetch budgets with all related data (only latest budget per semester)
-function fetchDetailedBudgets($departmentId, $conn) {
+// Fetch budgets for a specific department and semester
+function fetchDetailedBudgets($departmentId, $semester, $conn) {
     $query = "
         WITH LatestBudgets AS (
             SELECT 
@@ -35,7 +35,7 @@ function fetchDetailedBudgets($departmentId, $conn) {
             FROM 
                 budgets
             WHERE 
-                department_id = ?
+                department_id = ? AND semester = ?
             AND 
                 created_at = (
                     SELECT MAX(created_at)
@@ -76,7 +76,7 @@ function fetchDetailedBudgets($departmentId, $conn) {
         exit;
     }
 
-    $stmt->bind_param('i', $departmentId);
+    $stmt->bind_param('is', $departmentId, $semester);
     $stmt->execute();
     $result = $stmt->get_result();
 
@@ -139,11 +139,12 @@ function fetchDetailedBudgets($departmentId, $conn) {
 }
 
 // Route handling
-if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['department_id']) && isset($_GET['semester'])) {
     $departmentId = intval($_GET['department_id']);
-    fetchDetailedBudgets($departmentId, $mysqli);
+    $semester = $_GET['semester'];
+    fetchDetailedBudgets($departmentId, $semester, $mysqli);
 } else {
     http_response_code(404); // Not Found
-    echo json_encode(['message' => 'Endpoint not found']);
+    echo json_encode(['message' => 'Invalid request. department_id and semester are required.']);
 }
 ?>
