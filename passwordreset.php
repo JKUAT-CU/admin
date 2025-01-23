@@ -118,7 +118,7 @@ function updatePassword($mysqli, $email, $password) {
 function sendResetEmail($email, $token) {
     $mail = new PHPMailer\PHPMailer\PHPMailer(true);
     try {
-        $resetLink = "https://admin.jkuatcu.org/reset.php?token=$token";
+        $resetLink = "https://admin.jkuatcu.org/reset?token=$token";
 
         $mail->isSMTP();
         $mail->Host = SMTP_HOST;
