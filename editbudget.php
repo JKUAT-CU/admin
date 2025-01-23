@@ -70,7 +70,7 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
 }
 
 // Fetch budgets by department_id and semester
-function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
+function fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester, $conn) {
     $query = "
         WITH LatestBudgets AS (
             SELECT 
@@ -158,10 +158,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         // Fetch budgets by department_id and semester
         $departmentId = intval($_GET['department_id']);
         $semester = $_GET['semester'];
-        fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $mysqli);
+        fetchBudgetsByDepartmentAndSemester($departmentId,$budgetId, $semester, $mysqli);
     } elseif (isset($_GET['department_id'])) {
         // Fetch budgets by department_id only
         $departmentId = intval($_GET['department_id']);
+        $departmentId = intval($_GET['budget_id']);
         fetchBudgetsByDepartment($departmentId, $mysqli);
     } else {
         http_response_code(400); // Bad Request
