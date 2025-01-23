@@ -101,26 +101,30 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
             lb.department_id,
             COALESCE(
                 JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        'event_id', e.id, 
-                        'event_name', e.name, 
-                        'attendance', e.attendance, 
-                        'event_total_cost', e.total_cost
-                    )
-                ) FILTER (WHERE e.id IS NOT NULL), 
-                '[]'
+                    CASE 
+                        WHEN e.id IS NOT NULL THEN JSON_OBJECT(
+                            'event_id', e.id, 
+                            'event_name', e.name, 
+                            'attendance', e.attendance, 
+                            'event_total_cost', e.total_cost
+                        )
+                        ELSE NULL
+                    END
+                ), '[]'
             ) AS events,
             COALESCE(
                 JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        'asset_id', a.id, 
-                        'asset_name', a.name, 
-                        'quantity', a.quantity, 
-                        'cost_per_item', a.price, 
-                        'total_cost', a.total_cost
-                    )
-                ) FILTER (WHERE a.id IS NOT NULL), 
-                '[]'
+                    CASE 
+                        WHEN a.id IS NOT NULL THEN JSON_OBJECT(
+                            'asset_id', a.id, 
+                            'asset_name', a.name, 
+                            'quantity', a.quantity, 
+                            'cost_per_item', a.price, 
+                            'total_cost', a.total_cost
+                        )
+                        ELSE NULL
+                    END
+                ), '[]'
             ) AS assets
         FROM 
             LatestBudgets lb
@@ -150,7 +154,6 @@ function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
 
     echo json_encode(['budgets' => $budgets]);
 }
-
 
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
