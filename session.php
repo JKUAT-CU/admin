@@ -1,6 +1,25 @@
 <?php
 header('Content-Type: application/json');
-session_start();
+
+// Allowed origins for CORS
+$allowedOrigins = ['https://admin.jkuatcu.org'];
+
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowedOrigins)) {
+    header('Access-Control-Allow-Origin: ' . $_SERVER['HTTP_ORIGIN']);
+    header('Access-Control-Allow-Credentials: true');
+} else {
+    http_response_code(403); // Forbidden
+    echo json_encode(['message' => 'Origin not allowed']);
+    exit;
+}
+
+header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+};
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Check if the action is to verify authentication
