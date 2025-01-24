@@ -29,6 +29,7 @@ function fetchLatestBudgets()
 {
     global $mysqli; // Use the global database connection
 
+    // Query to fetch the latest budget for each department per semester
     $query = "
         SELECT 
             b.id AS budget_id,
@@ -40,10 +41,12 @@ function fetchLatestBudgets()
         FROM budgets b
         LEFT JOIN departments d ON b.department_id = d.id
         WHERE b.created_at = (
-            SELECT MAX(created_at) 
-            FROM budgets 
-            WHERE department_id = b.department_id
+            SELECT MAX(created_at)
+            FROM budgets b2
+            WHERE b2.department_id = b.department_id
+            AND b2.semester = b.semester
         )
+        ORDER BY b.department_id, b.semester;
     ";
 
     $result = $mysqli->query($query);
@@ -72,7 +75,7 @@ function fetchLatestBudgets()
 
             // Fetch associated events for this budget
             $eventQuery = "
-                SELECT id AS event_id, name, attendance
+                SELECT id AS event_id, name, attendance, total_cost
                 FROM events
                 WHERE budget_id = $budgetId
             ";
@@ -100,6 +103,7 @@ function fetchLatestBudgets()
                 $events[] = [
                     'name' => $eventRow['name'],
                     'attendance' => (int)$eventRow['attendance'],
+                    'total_cost' => (float)$eventRow['total_cost'],
                     'items' => $items
                 ];
             }
