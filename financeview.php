@@ -29,7 +29,7 @@ $mysqli = require_once 'db.php';
 function viewbudget($departmentId, $semester, $conn)
 {
     $query = "
-        WITH LatestBudgets AS (
+            WITH LatestBudgets AS (
             SELECT 
                 id AS budget_id, 
                 semester, 
@@ -89,8 +89,9 @@ function viewbudget($departmentId, $semester, $conn)
                         )
                         ELSE NULL
                     END
-                ), 
-                '[]'
+                ) ORDER BY e.name ASC
+            , 
+            '[]'
             ) AS events
         FROM 
             LatestBudgets lb
@@ -98,9 +99,10 @@ function viewbudget($departmentId, $semester, $conn)
         LEFT JOIN finance_assets a ON a.budget_id = lb.budget_id
         LEFT JOIN finance_events e ON e.budget_id = lb.budget_id
         GROUP BY 
-            lb.budget_id, lb.semester, lb.grand_total, lb.created_at,  lb.department_id, d.name
+            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.department_id, d.name
         ORDER BY 
             lb.created_at DESC;
+
     ";
 
     $stmt = $conn->prepare($query);
