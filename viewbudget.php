@@ -74,7 +74,20 @@ function viewbudget($departmentId, $semester, $conn)
                         WHEN e.name IS NOT NULL THEN JSON_OBJECT(
                             'name', e.name, 
                             'attendance', e.attendance, 
-                            'total_cost', e.total_cost
+                            'total_cost', e.total_cost,
+                            'items', (
+                                SELECT 
+                                    JSON_ARRAYAGG(
+                                        JSON_OBJECT(
+                                            'name', ei.name,
+                                            'quantity', ei.quantity,
+                                            'price', ei.price,
+                                            'total_cost', ei.total_cost
+                                        )
+                                    )
+                                FROM event_items ei
+                                WHERE ei.event_id = e.id
+                            )
                         )
                         ELSE NULL
                     END
