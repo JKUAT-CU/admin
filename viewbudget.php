@@ -114,13 +114,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         $departmentId = intval($_GET['department_id']);
         $semester = $_GET['semester'];
 
-        // Validate semester format (YYYY-MM)
-        if (!preg_match('/^\d{4}-\d{2}$/', $semester)) {
-            http_response_code(400);
-            echo json_encode(['message' => 'Invalid semester format. Use YYYY-MM.']);
-            exit;
-        }
-
         viewbudget($departmentId, $semester, $mysqli);
     } else {
         http_response_code(400); // Bad Request
