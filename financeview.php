@@ -35,7 +35,6 @@ function viewbudget($departmentId, $semester, $conn)
                 semester, 
                 grand_total, 
                 created_at, 
-                status,
                 department_id
             FROM 
                 finance_budgets
@@ -52,7 +51,6 @@ function viewbudget($departmentId, $semester, $conn)
             lb.semester, 
             lb.grand_total, 
             lb.created_at, 
-            lb.status, 
             lb.department_id,
             d.name AS department_name,
             COALESCE(
@@ -100,7 +98,7 @@ function viewbudget($departmentId, $semester, $conn)
         LEFT JOIN finance_assets a ON a.budget_id = lb.budget_id
         LEFT JOIN finance_events e ON e.budget_id = lb.budget_id
         GROUP BY 
-            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
+            lb.budget_id, lb.semester, lb.grand_total, lb.created_at,  lb.department_id, d.name
         ORDER BY 
             lb.created_at DESC;
     ";
