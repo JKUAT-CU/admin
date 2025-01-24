@@ -39,12 +39,11 @@ function fetchLatestBudgets()
             d.name AS department_name
         FROM budgets b
         LEFT JOIN departments d ON b.department_id = d.id
-        INNER JOIN (
-            SELECT semester, MAX(created_at) AS latest_created_at
-            FROM budgets
-            GROUP BY semester
-        ) latest_budgets
-        ON b.semester = latest_budgets.semester AND b.created_at = latest_budgets.latest_created_at
+        WHERE b.created_at = (
+            SELECT MAX(created_at) 
+            FROM budgets 
+            WHERE department_id = b.department_id
+        )
     ";
 
     $result = $mysqli->query($query);
@@ -126,7 +125,7 @@ function fetchLatestBudgets()
     }
 }
 
-// Process GET request to fetch budgets
+// Process GET request to fetch the latest semester budgets
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     fetchLatestBudgets();
 } else {
