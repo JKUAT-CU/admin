@@ -46,7 +46,7 @@ function handleEditSubmission($input)
     $events = $input['events'];
 
     // Validate if the budget exists
-    $checkQuery = "SELECT id FROM finance_budgets WHERE id = ?";
+    $checkQuery = "SELECT id FROM budgets WHERE id = ?";
     $checkStmt = $mysqli->prepare($checkQuery);
 
     if (!$checkStmt) {
