@@ -36,6 +36,7 @@ function fetchLatestBudgets()
             b.department_id,
             b.semester,
             b.grand_total,
+            b.status,
             b.created_at,
             d.name AS department_name
         FROM budgets b
@@ -117,7 +118,8 @@ function fetchLatestBudgets()
                 'grand_total' => (float)$row['grand_total'],
                 'created_at' => $row['created_at'],
                 'assets' => $assets,
-                'events' => $events
+                'events' => $events,
+                'status' => $status
             ];
         }
 
