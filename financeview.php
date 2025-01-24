@@ -43,7 +43,7 @@ function viewbudget($departmentId, $semester, $conn)
             AND created_at = (
                 SELECT MAX(created_at)
                 FROM finance_budgets AS b2
-                WHERE b2.semester = finance_budgets.semester AND b2.department_id = budgets.department_id
+                WHERE b2.semester = finance_budgets.semester AND b2.department_id = finance_budgets.department_id
             )
         )
         SELECT 
