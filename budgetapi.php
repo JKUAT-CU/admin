@@ -38,24 +38,6 @@ $input = json_decode(file_get_contents('php://input'), true);
 if ($requestMethod === 'POST' && preg_match('/\/api\/budget\/([\w-]+)/', $requestUri, $matches)) {
     $semester = $matches[1];
     handleBudgetSubmission($input, $semester);
-}// elseif ($requestMethod === 'GET' && preg_match('/\/api\/budgets\/([\w-]+)/', $requestUri, $matches)) {
-//     $semester = $matches[1];
-//     if (isset($_GET['id'])) {
-//         $id = $_GET['id'];
-//         fetchSpecificBudget($semester, $id);
-//     } else {
-//         fetchBudgets($semester);
-//     }
-// } elseif ($requestMethod === 'PUT' && preg_match('/\/api\/budgets\/([\w-]+)\/([\w-]+)/', $requestUri, $matches)) {
-//     $semester = $matches[1];
-//     $id = $matches[2];
-//     updateBudget($input, $semester, $id);
-// } elseif ($requestMethod === 'DELETE' && preg_match('/\/api\/budgets\/([\w-]+)\/([\w-]+)/', $requestUri, $matches)) {
-//     $semester = $matches[1];
-//     $id = $matches[2];
-//     deleteBudget($semester, $id);
-// } else {
-//     http_response_code(404); // Not Found
-//     echo json_encode(['message' => 'Endpoint not found']);
-// // }
+}
+
 ?>
