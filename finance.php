@@ -117,9 +117,10 @@ function fetchLatestBudgets()
                 'semester' => $row['semester'],
                 'grand_total' => (float)$row['grand_total'],
                 'created_at' => $row['created_at'],
+                'status' => $row ['status'],
                 'assets' => $assets,
-                'events' => $events,
-                'status' => $status
+                'events' => $events
+                
             ];
         }
 
