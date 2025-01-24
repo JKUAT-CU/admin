@@ -65,7 +65,7 @@ function viewbudget($departmentId, $semester, $conn)
                     END
                 ), 
                 '[]'
-            ) AS finance_assets,
+            ) AS assets,
             COALESCE(
                 JSON_ARRAYAGG(
                     CASE 
