@@ -55,19 +55,31 @@ function viewbudget($departmentId, $semester, $conn)
             lb.status, 
             lb.department_id,
             d.name AS department_name,
-            JSON_ARRAYAGG(
-                JSON_OBJECT(
-                    'name', a.name, 
-                    'quantity', a.quantity, 
-                    'price', a.price
-                )
+            COALESCE(
+                JSON_ARRAYAGG(
+                    CASE 
+                        WHEN a.name IS NOT NULL THEN JSON_OBJECT(
+                            'name', a.name, 
+                            'quantity', a.quantity, 
+                            'price', a.price
+                        )
+                        ELSE NULL
+                    END
+                ), 
+                '[]'
             ) AS assets,
-            JSON_ARRAYAGG(
-                JSON_OBJECT(
-                    'name', e.name, 
-                    'attendance', e.attendance, 
-                    'total_cost', e.total_cost
-                )
+            COALESCE(
+                JSON_ARRAYAGG(
+                    CASE 
+                        WHEN e.name IS NOT NULL THEN JSON_OBJECT(
+                            'name', e.name, 
+                            'attendance', e.attendance, 
+                            'total_cost', e.total_cost
+                        )
+                        ELSE NULL
+                    END
+                ), 
+                '[]'
             ) AS events
         FROM 
             LatestBudgets lb
@@ -99,8 +111,8 @@ function viewbudget($departmentId, $semester, $conn)
 
     $budgets = [];
     while ($row = $result->fetch_assoc()) {
-        $row['assets'] = json_decode($row['assets'], true);
-        $row['events'] = json_decode($row['events'], true);
+        $row['assets'] = json_decode($row['assets'], true) ?: [];
+        $row['events'] = json_decode($row['events'], true) ?: [];
         $budgets[] = $row;
     }
 
