@@ -28,110 +28,114 @@ $mysqli = require_once 'db.php';
 
 function viewbudget($departmentId, $semester, $conn)
 {
-    $query = "
-        WITH LatestBudgets AS (
-            SELECT 
-                id AS budget_id, 
-                semester, 
-                grand_total, 
-                created_at, 
-                status,
-                department_id
-            FROM 
-                budgets
-            WHERE 
-                department_id = ? AND semester = ?
-            AND created_at = (
-                SELECT MAX(created_at)
-                FROM budgets AS b2
-                WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+    function viewbudget($departmentId, $semester, $conn)
+    {
+        $query = "
+            WITH LatestBudgets AS (
+                SELECT 
+                    id AS budget_id, 
+                    semester, 
+                    grand_total, 
+                    created_at, 
+                    status,
+                    department_id
+                FROM 
+                    budgets
+                WHERE 
+                    department_id = ? AND semester = ?
+                AND created_at = (
+                    SELECT MAX(created_at)
+                    FROM budgets AS b2
+                    WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+                )
             )
-        )
-        SELECT 
-            lb.budget_id, 
-            lb.semester, 
-            lb.grand_total, 
-            lb.created_at, 
-            lb.status, 
-            lb.department_id,
-            d.name AS department_name,
-            COALESCE(
-                JSON_ARRAYAGG(
-                    CASE 
-                        WHEN a.name IS NOT NULL THEN JSON_OBJECT(
-                            'name', a.name, 
-                            'quantity', a.quantity, 
-                            'price', a.price
-                        )
-                        ELSE NULL
-                    END
-                ), 
-                '[]'
-            ) AS assets,
-            COALESCE(
-                JSON_ARRAYAGG(
-                    CASE 
-                        WHEN e.name IS NOT NULL THEN JSON_OBJECT(
-                            'name', e.name, 
-                            'attendance', e.attendance, 
-                            'total_cost', e.total_cost,
-                            'items', (
-                                SELECT 
-                                    JSON_ARRAYAGG(
-                                        JSON_OBJECT(
-                                            'name', ei.name,
-                                            'quantity', ei.quantity,
-                                            'price', ei.price,
-                                            'total_cost', ei.total_cost
-                                        )
-                                    )
-                                FROM event_items ei
-                                WHERE ei.event_id = e.id
+            SELECT 
+                lb.budget_id, 
+                lb.semester, 
+                lb.grand_total, 
+                lb.created_at, 
+                lb.status, 
+                lb.department_id,
+                d.name AS department_name,
+                COALESCE(
+                    JSON_ARRAYAGG(
+                        CASE 
+                            WHEN a.name IS NOT NULL THEN JSON_OBJECT(
+                                'name', a.name, 
+                                'quantity', a.quantity, 
+                                'price', a.price
                             )
-                        )
-                        ELSE NULL
-                    END
-                ), 
-                '[]'
-            ) AS events
-        FROM 
-            LatestBudgets lb
-        JOIN departments d ON lb.department_id = d.id
-        LEFT JOIN assets a ON a.budget_id = lb.budget_id
-        LEFT JOIN events e ON e.budget_id = lb.budget_id
-        GROUP BY 
-            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
-        ORDER BY 
-            lb.created_at DESC;
-    ";
-
-    $stmt = $conn->prepare($query);
-    if (!$stmt) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to prepare query']);
-        exit;
+                            ELSE NULL
+                        END
+                    ), 
+                    '[]'
+                ) AS assets,
+                COALESCE(
+                    JSON_ARRAYAGG(
+                        CASE 
+                            WHEN e.name IS NOT NULL THEN JSON_OBJECT(
+                                'name', e.name, 
+                                'attendance', e.attendance, 
+                                'total_cost', e.total_cost,
+                                'items', COALESCE(
+                                    JSON_ARRAYAGG(
+                                        CASE 
+                                            WHEN ei.name IS NOT NULL THEN JSON_OBJECT(
+                                                'name', ei.name,
+                                                'quantity', ei.quantity,
+                                                'price', ei.price,
+                                                'total_cost', ei.total_cost
+                                            )
+                                            ELSE NULL
+                                        END
+                                    ), '[]'
+                                )
+                            )
+                            ELSE NULL
+                        END
+                    ), 
+                    '[]'
+                ) AS events
+            FROM 
+                LatestBudgets lb
+            JOIN departments d ON lb.department_id = d.id
+            LEFT JOIN assets a ON a.budget_id = lb.budget_id
+            LEFT JOIN events e ON e.budget_id = lb.budget_id
+            LEFT JOIN event_items ei ON ei.event_id = e.id
+            GROUP BY 
+                lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
+            ORDER BY 
+                lb.created_at DESC;
+        ";
+    
+        $stmt = $conn->prepare($query);
+        if (!$stmt) {
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to prepare query']);
+            exit;
+        }
+    
+        $stmt->bind_param('is', $departmentId, $semester);
+        $stmt->execute();
+        $result = $stmt->get_result();
+    
+        if ($result->num_rows === 0) {
+            http_response_code(404);
+            echo json_encode(['message' => 'No budget found for the specified department and semester']);
+            exit;
+        }
+    
+        $budgets = [];
+        while ($row = $result->fetch_assoc()) {
+            $row['assets'] = json_decode($row['assets'], true) ?: [];
+            $row['events'] = json_decode($row['events'], true) ?: [];
+            $budgets[] = $row;
+        }
+    
+        http_response_code(200);
+        echo json_encode(['budgets' => $budgets]);
     }
-
-    $stmt->bind_param('is', $departmentId, $semester);
-    $stmt->execute();
-    $result = $stmt->get_result();
-
-    if ($result->num_rows === 0) {
-        http_response_code(404);
-        echo json_encode(['message' => 'No budget found for the specified department and semester']);
-        exit;
-    }
-
-    $budgets = [];
-    while ($row = $result->fetch_assoc()) {
-        $row['assets'] = json_decode($row['assets'], true) ?: [];
-        $row['events'] = json_decode($row['events'], true) ?: [];
-        $budgets[] = $row;
-    }
-
-    http_response_code(200);
-    echo json_encode(['budgets' => $budgets]);
-}
+    
 
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
