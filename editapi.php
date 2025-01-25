@@ -103,43 +103,42 @@ function handleEditSubmission($input)
         }
         $assetStmt->close();
 
-        // Insert events into `events` table for the new budget
-        $eventQuery = "INSERT INTO events (budget_id, name, attendance) VALUES (?, ?, ?)";
-        $eventStmt = $mysqli->prepare($eventQuery);
-        if (!$eventStmt) {
-            throw new Exception('Failed to prepare event insert query');
+       // Insert events into `events` table for the new budget
+$eventQuery = "INSERT INTO events (budget_id, name, attendance) VALUES (?, ?, ?)";
+$eventStmt = $mysqli->prepare($eventQuery);
+if (!$eventStmt) {
+    throw new Exception('Failed to prepare event insert query');
+}
+
+$eventItemQuery = "INSERT INTO event_items (event_id, name, quantity, price) VALUES (?, ?, ?, ?)";
+$eventItemStmt = $mysqli->prepare($eventItemQuery);
+if (!$eventItemStmt) {
+    throw new Exception('Failed to prepare event item insert query');
+}
+
+foreach ($events as $event) {
+    $eventName = $mysqli->real_escape_string($event['name'] ?? '');
+    $attendance = (int)($event['attendance'] ?? 0);
+    $eventStmt->bind_param('isi', $newBudgetId, $eventName, $attendance);
+    $eventStmt->execute();
+
+    // Get the ID of the newly inserted event
+    $eventId = $eventStmt->insert_id;
+
+    // Insert event items into `event_items` table if items exist
+    if (isset($event['items']) && is_array($event['items'])) {
+        foreach ($event['items'] as $item) {
+            $itemName = $mysqli->real_escape_string($item['name'] ?? '');
+            $itemQuantity = (int)($item['quantity'] ?? 0);
+            $itemPrice = (float)($item['price'] ?? 0);
+            $eventItemStmt->bind_param('isid', $eventId, $itemName, $itemQuantity, $itemPrice);
+            $eventItemStmt->execute();
         }
+    }
+}
+$eventStmt->close();
+$eventItemStmt->close();
 
-        $eventItemQuery = "INSERT INTO event_items (event_id, name, quantity, price) VALUES (?, ?, ?, ?)";
-        $eventItemStmt = $mysqli->prepare($eventItemQuery);
-        if (!$eventItemStmt) {
-            throw new Exception('Failed to prepare event item insert query');
-        }
-
-        foreach ($events as $event) {
-            $eventName = $mysqli->real_escape_string($event['name']);
-            $attendance = (int)$event['attendance'];
-            $eventStmt->bind_param('isi', $newBudgetId, $eventName, $attendance);
-            $eventStmt->execute();
-
-            // Get the ID of the newly inserted event
-            $eventId = $eventStmt->insert_id;
-
-            // Insert event items into `event_items` table
-            foreach ($event['items'] as $item) {
-                $itemName = $mysqli->real_escape_string($item['name']);
-                $itemQuantity = (int)$item['quantity'];
-                $itemPrice = (float)$item['price'];
-                $eventItemStmt->bind_param('isid', $eventId, $itemName, $itemQuantity, $itemPrice);
-                $eventItemStmt->execute();
-            }
-        }
-
-        $eventStmt->close();
-        $eventItemStmt->close();
-
-        // Commit the transaction
-        $mysqli->commit();
 
         echo json_encode(['message' => 'Budget updated with new entries successfully']);
     } catch (Exception $e) {
