@@ -25,6 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // Database connection
 $mysqli = require_once 'db.php';
+
+
 function viewbudget($departmentId, $semester, $conn)
 {
     $query = "
@@ -70,27 +72,26 @@ function viewbudget($departmentId, $semester, $conn)
             COALESCE(
                 JSON_ARRAYAGG(
                     CASE 
-                        WHEN e.name IS NOT NULL THEN 
-                            JSON_OBJECT(
-                                'name', e.name, 
-                                'attendance', e.attendance, 
-                                'total_cost', e.total_cost,
-                                'items', 
-                                    COALESCE(
-                                        JSON_ARRAYAGG(
-                                            CASE 
-                                                WHEN ei.name IS NOT NULL THEN 
-                                                    JSON_OBJECT(
-                                                        'name', ei.name,
-                                                        'quantity', ei.quantity,
-                                                        'price', ei.price,
-                                                        'total_cost', ei.total_cost
-                                                    )
-                                                ELSE NULL
-                                            END
-                                        ), 
-                                    '[]')
-                            )
+                        WHEN e.name IS NOT NULL THEN JSON_OBJECT(
+                            'name', e.name, 
+                            'attendance', e.attendance, 
+                            'total_cost', e.total_cost,
+                            'items', 
+                                COALESCE(
+                                    JSON_ARRAYAGG(
+                                        CASE 
+                                            WHEN ei.name IS NOT NULL THEN JSON_OBJECT(
+                                                'name', ei.name,
+                                                'quantity', ei.quantity,
+                                                'price', ei.price,
+                                                'total_cost', ei.total_cost
+                                            )
+                                            ELSE NULL
+                                        END
+                                    ), 
+                                    '[]'
+                                )
+                        )
                         ELSE NULL
                     END
                 ), 
