@@ -76,9 +76,9 @@ function viewbudget($departmentId, $semester, $conn)
                         'items', (
                             SELECT JSON_ARRAYAGG(
                                 JSON_OBJECT(
-                                    'name', ei.item_name,
-                                    'quantity', ei.item_quantity,
-                                    'price', ei.item_price,
+                                    'name', ei.name,
+                                    'quantity', ei.quantity,
+                                    'price', ei.price,
 
                                 )
                             )
