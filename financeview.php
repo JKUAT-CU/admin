@@ -29,7 +29,7 @@ $mysqli = require_once 'db.php';
 function viewbudget($departmentId, $semester, $conn)
 {
     $query = "
-            WITH LatestBudgets AS (
+        WITH LatestBudgets AS (
             SELECT 
                 id AS budget_id, 
                 semester, 
@@ -55,7 +55,7 @@ function viewbudget($departmentId, $semester, $conn)
             d.name AS department_name,
             COALESCE(
                 JSON_ARRAYAGG(
-                    CASE 
+                    DISTINCT CASE 
                         WHEN a.name IS NOT NULL THEN JSON_OBJECT(
                             'name', a.name, 
                             'quantity', a.quantity, 
@@ -68,30 +68,26 @@ function viewbudget($departmentId, $semester, $conn)
             ) AS assets,
             COALESCE(
                 JSON_ARRAYAGG(
-                    CASE 
-                        WHEN e.name IS NOT NULL THEN JSON_OBJECT(
-                            'name', e.name, 
-                            'attendance', e.attendance, 
-                            'total_cost', e.total_cost,
-                            'items', (
-                                SELECT 
-                                    JSON_ARRAYAGG(
-                                        JSON_OBJECT(
-                                            'name', ei.name,
-                                            'quantity', ei.quantity,
-                                            'price', ei.price,
-                                            'total_cost', ei.total_cost
-                                        )
+                    DISTINCT JSON_OBJECT(
+                        'name', e.name, 
+                        'attendance', e.attendance, 
+                        'total_cost', e.total_cost,
+                        'items', (
+                            SELECT 
+                                JSON_ARRAYAGG(
+                                    JSON_OBJECT(
+                                        'name', ei.name,
+                                        'quantity', ei.quantity,
+                                        'price', ei.price,
+                                        'total_cost', ei.total_cost
                                     )
-                                FROM finance_event_items ei
-                                WHERE ei.event_id = e.id
-                            )
+                                )
+                            FROM finance_event_items ei
+                            WHERE ei.event_id = e.id
                         )
-                        ELSE NULL
-                    END
-                ) ORDER BY e.name ASC
-            , 
-            '[]'
+                    )
+                ), 
+                '[]'
             ) AS events
         FROM 
             LatestBudgets lb
@@ -102,7 +98,6 @@ function viewbudget($departmentId, $semester, $conn)
             lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.department_id, d.name
         ORDER BY 
             lb.created_at DESC;
-
     ";
 
     $stmt = $conn->prepare($query);
