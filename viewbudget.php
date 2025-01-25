@@ -135,7 +135,7 @@ function viewbudget($departmentId, $semester, $conn)
         http_response_code(200);
         echo json_encode(['budgets' => $budgets]);
     }
-    
+}
 
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
