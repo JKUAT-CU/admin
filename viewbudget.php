@@ -55,41 +55,54 @@ function viewbudget($departmentId, $semester, $conn)
             lb.status, 
             lb.department_id,
             d.name AS department_name,
-            (
-                SELECT JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        'name', a.name,
-                        'quantity', a.quantity,
-                        'price', a.price
-                    )
-                )
-                FROM assets a WHERE a.budget_id = lb.budget_id
-            ) AS assets,
-            (
-                SELECT JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        'name', e.name,
-                        'attendance', e.attendance,
-                        'total_cost', e.total_cost,
-                        'items', (
-                            SELECT JSON_ARRAYAGG(
-                                JSON_OBJECT(
-                                    'name', ei.name,
-                                    'quantity', ei.quantity,
-                                    'price', ei.price,
-                                    'total_cost', ei.total_cost
-                                )
-                            )
-                            FROM event_items ei WHERE ei.event_id = e.id
+            COALESCE(
+                JSON_ARRAYAGG(
+                    CASE 
+                        WHEN a.name IS NOT NULL THEN JSON_OBJECT(
+                            'name', a.name, 
+                            'quantity', a.quantity, 
+                            'price', a.price
                         )
-                    )
-                )
-                FROM events e WHERE e.budget_id = lb.budget_id
+                        ELSE NULL
+                    END
+                ), 
+                '[]'
+            ) AS assets,
+            COALESCE(
+                JSON_ARRAYAGG(
+                    CASE 
+                        WHEN e.name IS NOT NULL THEN JSON_OBJECT(
+                            'name', e.name, 
+                            'attendance', e.attendance, 
+                            'total_cost', e.total_cost,
+                            'items', (
+                                SELECT 
+                                    JSON_ARRAYAGG(
+                                        JSON_OBJECT(
+                                            'name', ei.name,
+                                            'quantity', ei.quantity,
+                                            'price', ei.price,
+                                            'total_cost', ei.total_cost
+                                        )
+                                    )
+                                FROM event_items ei
+                                WHERE ei.event_id = e.id
+                            )
+                        )
+                        ELSE NULL
+                    END
+                ), 
+                '[]'
             ) AS events
         FROM 
             LatestBudgets lb
         JOIN departments d ON lb.department_id = d.id
-        ORDER BY lb.created_at DESC;
+        LEFT JOIN assets a ON a.budget_id = lb.budget_id
+        LEFT JOIN events e ON e.budget_id = lb.budget_id
+        GROUP BY 
+            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
+        ORDER BY 
+            lb.created_at DESC;
     ";
 
     $stmt = $conn->prepare($query);
