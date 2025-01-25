@@ -131,18 +131,22 @@ function handleEditSubmission($input)
             $attendance = (int)$event['attendance'];
             $eventStmt->bind_param('isi', $newBudgetId, $eventName, $attendance);
             $eventStmt->execute();
-    
+        
             // Get the ID of the newly inserted event
             $eventId = $eventStmt->insert_id;
-    
-            foreach ($event['items'] as $item) {
-                $itemName = $mysqli->real_escape_string($item['name']);
-                $itemQuantity = (int)$item['quantity'];
-                $itemPrice = (float)$item['price'];
-                $eventItemStmt->bind_param('isid', $eventId, $itemName, $itemQuantity, $itemPrice);
-                $eventItemStmt->execute();
+        
+            // Check if 'items' exists and is an array before iterating
+            if (isset($event['items']) && is_array($event['items'])) {
+                foreach ($event['items'] as $item) {
+                    $itemName = $mysqli->real_escape_string($item['name']);
+                    $itemQuantity = (int)$item['quantity'];
+                    $itemPrice = (float)$item['price'];
+                    $eventItemStmt->bind_param('isid', $eventId, $itemName, $itemQuantity, $itemPrice);
+                    $eventItemStmt->execute();
+                }
             }
         }
+        
     
         $eventStmt->close();
         $eventItemStmt->close();
