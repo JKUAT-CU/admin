@@ -72,76 +72,80 @@ function fetchBudgetsByDepartment($departmentId, $conn) {
 
 function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
     $query = "
-        WITH LatestBudgets AS (
-            SELECT 
-                id AS budget_id, 
-                semester, 
-                grand_total, 
-                created_at, 
-                status,
-                department_id
-            FROM 
-                budgets
-            WHERE 
-                department_id = ? AND semester = ?
-            AND created_at = (
-                SELECT MAX(created_at)
-                FROM budgets AS b2
-                WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
-            )
-        )
+    WITH LatestBudgets AS (
         SELECT 
-            lb.budget_id, 
-            lb.semester, 
-            lb.grand_total, 
-            lb.created_at, 
-            lb.status, 
-            lb.department_id,
-            d.name AS department_name,
-            JSON_ARRAYAGG(
-                JSON_OBJECT(
-                    'name', a.name, 
-                    'quantity', a.quantity, 
-                    'price', a.price
-                )
-            ) AS assets,
-            JSON_ARRAYAGG(
-                JSON_OBJECT(
-                    'name', e.name, 
-                    'attendance', e.attendance, 
-                    'total_cost', e.total_cost
-                )
-            ) AS events
+            id AS budget_id, 
+            semester, 
+            grand_total, 
+            created_at, 
+            status,
+            department_id
         FROM 
-            LatestBudgets lb
-        JOIN departments d ON lb.department_id = d.id
-        LEFT JOIN assets a ON a.budget_id = lb.budget_id
-        LEFT JOIN events e ON e.budget_id = lb.budget_id
-        GROUP BY 
-            lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
-        ORDER BY 
-            lb.created_at DESC;
-    ";
+            budgets
+        WHERE 
+            department_id = ? AND semester = ?
+        AND created_at = (
+            SELECT MAX(created_at)
+            FROM budgets AS b2
+            WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+        )
+    )
+    SELECT 
+        lb.budget_id, 
+        lb.semester, 
+        lb.grand_total, 
+        lb.created_at, 
+        lb.status, 
+        lb.department_id,
+        d.name AS department_name,
+        JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'name', a.name, 
+                'quantity', a.quantity, 
+                'price', a.price
+            )
+        ) AS assets,
+        JSON_ARRAYAGG(
+            JSON_OBJECT(
+                'name', e.name, 
+                'attendance', e.attendance, 
+                'total_cost', e.total_cost
+            )
+        ) AS events
+    FROM 
+        LatestBudgets lb
+    JOIN departments d ON lb.department_id = d.id
+    LEFT JOIN assets a ON a.budget_id = lb.budget_id
+    LEFT JOIN events e ON e.budget_id = lb.budget_id
+    GROUP BY 
+        lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
+    ORDER BY 
+        lb.created_at DESC;
+";
 
-    $stmt = $conn->prepare($query);
-    if (!$stmt) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Failed to prepare query']);
-        exit;
-    }
+$stmt = $conn->prepare($query);
+if (!$stmt) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Failed to prepare query']);
+    exit;
+}
 
-    $stmt->bind_param('is', $departmentId, $semester);
-    $stmt->execute();
-    $result = $stmt->get_result();
+$stmt->bind_param('is', $departmentId, $semester);
+$stmt->execute();
+$result = $stmt->get_result();
 
-    $budgets = [];
-    while ($row = $result->fetch_assoc()) {
-        $row['assets'] = json_decode($row['assets'], true);
-        $row['events'] = json_decode($row['events'], true);
-        $budgets[] = $row;
-    }
+$budgets = [];
+while ($row = $result->fetch_assoc()) {
+    // Check raw events before decoding
+    echo $row['events'];  // Debugging line to check events field
 
-    echo json_encode(['budgets' => $budgets]);
+    $row['assets'] = json_decode($row['assets'], true);
+    $row['events'] = json_decode($row['events'], true) ?? []; // Default to empty array if NULL
+    $budgets[] = $row;
+}
+
+echo json_encode(['budgets' => $budgets]);
+
 }
 
 // Route handling
