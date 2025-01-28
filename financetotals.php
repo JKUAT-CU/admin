@@ -26,8 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Database connection
 $mysqli = require_once 'db.php';
 
-function viewAllBudgets($conn)
-{
+function getAllSemestersBudgets($conn) {
     $query = "
         WITH LatestBudgets AS (
             SELECT 
@@ -95,7 +94,7 @@ function viewAllBudgets($conn)
         GROUP BY 
             lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.department_id, d.name
         ORDER BY 
-            lb.created_at DESC;
+            lb.semester ASC, lb.created_at DESC;
     ";
 
     $stmt = $conn->prepare($query);
@@ -127,7 +126,7 @@ function viewAllBudgets($conn)
 
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    viewAllBudgets($mysqli);
+    getAllSemestersBudgets($mysqli);
 } else {
     http_response_code(404); // Not Found
     echo json_encode(['message' => 'Invalid endpoint or method.']);
