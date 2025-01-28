@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // Database connection
 $mysqli = require_once 'db.php';
 
-function getAllBudgets($conn)
+function viewAllBudgets($conn)
 {
     $query = "
         WITH LatestBudgets AS (
@@ -38,12 +38,11 @@ function getAllBudgets($conn)
                 department_id
             FROM 
                 finance_budgets
-            WHERE 
-                created_at = (
-                    SELECT MAX(created_at)
-                    FROM finance_budgets AS b2
-                    WHERE b2.semester = finance_budgets.semester AND b2.department_id = finance_budgets.department_id
-                )
+            WHERE created_at = (
+                SELECT MAX(created_at)
+                FROM finance_budgets AS b2
+                WHERE b2.semester = finance_budgets.semester AND b2.department_id = finance_budgets.department_id
+            )
         )
         SELECT 
             lb.budget_id, 
@@ -128,7 +127,7 @@ function getAllBudgets($conn)
 
 // Route handling
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    getAllBudgets($mysqli);
+    viewAllBudgets($mysqli);
 } else {
     http_response_code(404); // Not Found
     echo json_encode(['message' => 'Invalid endpoint or method.']);
