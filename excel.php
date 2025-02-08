@@ -3,8 +3,9 @@
 require 'db.php'; 
 require 'vendor/autoload.php'; 
 
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+require 'vendor/PhpOffice/PhpSpreadsheet/Spreadsheet.php';
+require 'vendor/PhpOffice/PhpSpreadsheet/Writer/Xlsx.php';
+
 
 
 // Set headers for Excel download
