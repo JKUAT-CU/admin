@@ -1,21 +1,7 @@
 <?php
+header('Content-Type: application/json');
 
-require 'db.php'; 
-require 'vendor/autoload.php'; // This is enough to load PhpSpreadsheet
-
-// Manually load PhpSpreadsheet core files
-require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Spreadsheet.php';
-require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/Xlsx.php';
-
-// Use necessary PhpSpreadsheet classes
-use PhpOffice\PhpSpreadsheet\Spreadsheet;
-use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-
-
-// Set headers for Excel download
-header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment; filename="Budgets.xlsx"');
-header('Cache-Control: max-age=0');
+require 'db.php';
 
 // Fetch budget data from the database
 function fetch_budget_data($mysqli) {
@@ -45,63 +31,24 @@ function fetch_budget_data($mysqli) {
 
     $stmt = $mysqli->prepare($query);
     if (!$stmt) {
-        die(json_encode(['error' => 'Failed to prepare statement: ' . $mysqli->error]));
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to prepare statement: ' . $mysqli->error]);
+        exit;
     }
 
     if (!$stmt->execute()) {
-        die(json_encode(['error' => 'Query execution failed: ' . $stmt->error]));
+        http_response_code(500);
+        echo json_encode(['error' => 'Query execution failed: ' . $stmt->error]);
+        exit;
     }
 
     $result = $stmt->get_result();
-    return $result->fetch_all(MYSQLI_ASSOC);
+    $data = $result->fetch_all(MYSQLI_ASSOC);
+
+    echo json_encode($data);
+    exit;
 }
 
-$budgets = fetch_budget_data($mysqli);
-
-// Create an Excel spreadsheet
-$spreadsheet = new Spreadsheet();
-$sheet = $spreadsheet->getActiveSheet();
-$sheet->setTitle("Budgets");
-
-// Headers
-$headers = [
-    "Department Name", "Semester", "Grand Total", "Finance Approved Total", 
-    "Asset Name", "Quantity", "Price", 
-    "Event Name", "Attendance", "Event Item", "Item Quantity", "Item Price"
-];
-$sheet->fromArray([$headers], NULL, 'A1');
-
-// Style Headers (Bold + Borders)
-$styleArray = [
-    'font' => ['bold' => true],
-    'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]],
-    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
-];
-$sheet->getStyle('A1:L1')->applyFromArray($styleArray);
-
-// Populate data
-$rowIndex = 2;
-foreach ($budgets as $budget) {
-    $sheet->fromArray([
-        $budget['department_name'], $budget['semester'], $budget['grand_total'], $budget['finance_approved_total'],
-        $budget['asset_name'], $budget['asset_quantity'], $budget['asset_price'],
-        $budget['event_name'], $budget['attendance'],
-        $budget['event_item_name'], $budget['event_item_quantity'], $budget['event_item_price']
-    ], NULL, "A$rowIndex");
-    $rowIndex++;
-}
-
-// Auto-size columns for better readability
-foreach (range('A', 'L') as $col) {
-    $sheet->getColumnDimension($col)->setAutoSize(true);
-}
-
-// Write to output
-try {
-    $writer = new Xlsx($spreadsheet);
-    $writer->save("php://output");
-} catch (Exception $e) {
-    die(json_encode(['error' => 'Excel generation failed: ' . $e->getMessage()]));
-}
-
-exit;
+// Execute function and return JSON
+fetch_budget_data($mysqli);
+?>
