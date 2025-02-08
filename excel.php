@@ -9,16 +9,17 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 // Set headers for Excel download
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="Budgets.xlsx"');
+header('Cache-Control: max-age=0');
 
-// Fetch budget data from database
+// Fetch budget data from the database
 function fetch_budget_data($mysqli) {
     $query = "
         SELECT 
             b.id AS budget_id, d.name AS department_name, b.semester, b.grand_total, 
-            f.approved_total AS finance_approved_total, 
-            a.name AS asset_name, a.quantity AS asset_quantity, a.price AS asset_price, 
-            e.name AS event_name, e.attendance, ei.name AS event_item_name, 
-            ei.quantity AS event_item_quantity, ei.price AS event_item_price
+            COALESCE(f.approved_total, 0) AS finance_approved_total,
+            COALESCE(a.name, 'N/A') AS asset_name, COALESCE(a.quantity, 0) AS asset_quantity, COALESCE(a.price, 0) AS asset_price, 
+            COALESCE(e.name, 'N/A') AS event_name, COALESCE(e.attendance, 0) AS attendance, 
+            COALESCE(ei.name, 'N/A') AS event_item_name, COALESCE(ei.quantity, 0) AS event_item_quantity, COALESCE(ei.price, 0) AS event_item_price
         FROM budgets b
         JOIN departments d ON b.department_id = d.id
         LEFT JOIN finance_approvals f ON b.id = f.budget_id
@@ -27,15 +28,19 @@ function fetch_budget_data($mysqli) {
         LEFT JOIN event_items ei ON e.id = ei.event_id
         ORDER BY b.semester ASC, b.created_at DESC;
     ";
-    
+
     $stmt = $mysqli->prepare($query);
+    if (!$stmt) {
+        die(json_encode(['error' => 'Failed to prepare statement']));
+    }
+
     $stmt->execute();
     $result = $stmt->get_result();
-    
-    return $result->fetch_all(MYSQLI_ASSOC); // Fetch as associative array
+
+    return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-$mysqli = require 'db.php'; // Get database connection
+$mysqli = require 'db.php'; 
 $budgets = fetch_budget_data($mysqli);
 
 // Create an Excel spreadsheet
@@ -49,7 +54,14 @@ $headers = [
     "Asset Name", "Quantity", "Price", 
     "Event Name", "Attendance", "Event Item", "Item Quantity", "Item Price"
 ];
-$sheet->fromArray($headers, NULL, 'A1');
+$sheet->fromArray([$headers], NULL, 'A1');
+
+// Style Headers (Bold)
+$styleArray = [
+    'font' => ['bold' => true],
+    'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]],
+];
+$sheet->getStyle('A1:L1')->applyFromArray($styleArray);
 
 // Populate data
 $rowIndex = 2;
@@ -60,17 +72,17 @@ foreach ($budgets as $budget) {
         $budget['event_name'], $budget['attendance'],
         $budget['event_item_name'], $budget['event_item_quantity'], $budget['event_item_price']
     ], NULL, "A$rowIndex");
-
-    if ($rowIndex % 100 == 0) {
-        flush(); // Prevent memory overload in large datasets
-    }
-    
     $rowIndex++;
+}
+
+// Auto-size columns for better readability
+foreach (range('A', 'L') as $col) {
+    $sheet->getColumnDimension($col)->setAutoSize(true);
 }
 
 // Write to output
 $writer = new Xlsx($spreadsheet);
 $writer->save("php://output");
-
 exit;
+
 ?>
