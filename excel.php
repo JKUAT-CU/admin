@@ -1,16 +1,17 @@
 <?php
 
-require 'db.php'; // Include your database connection
-require 'vendor/autoload.php'; // Include PHPSpreadsheet
+require 'db.php'; 
+require 'vendor/autoload.php'; 
 
-use PhpSpreadsheet\Spreadsheet;
-use PhpSpreadsheet\Writer\Xlsx;
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
+// Set headers for Excel download
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 header('Content-Disposition: attachment; filename="Budgets.xlsx"');
 
 // Fetch budget data from database
-function fetch_budget_data($conn) {
+function fetch_budget_data($mysqli) {
     $query = "
         SELECT 
             b.id AS budget_id, d.name AS department_name, b.semester, b.grand_total, 
@@ -24,22 +25,20 @@ function fetch_budget_data($conn) {
         LEFT JOIN assets a ON b.id = a.budget_id
         LEFT JOIN events e ON b.id = e.budget_id
         LEFT JOIN event_items ei ON e.id = ei.event_id
-        ORDER BY b.semester ASC, b.created_at DESC;";
+        ORDER BY b.semester ASC, b.created_at DESC;
+    ";
     
-    $result = $conn->query($query);
-    $budgets = [];
+    $stmt = $mysqli->prepare($query);
+    $stmt->execute();
+    $result = $stmt->get_result();
     
-    while ($row = $result->fetch_assoc()) {
-        $budgets[] = $row;
-    }
-    
-    return $budgets;
+    return $result->fetch_all(MYSQLI_ASSOC); // Fetch as associative array
 }
 
-$mysqli = new mysqli("localhost", "username", "password", "database");
+$mysqli = require 'db.php'; // Get database connection
 $budgets = fetch_budget_data($mysqli);
 
-// Create an Excel file
+// Create an Excel spreadsheet
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle("Budgets");
@@ -61,11 +60,17 @@ foreach ($budgets as $budget) {
         $budget['event_name'], $budget['attendance'],
         $budget['event_item_name'], $budget['event_item_quantity'], $budget['event_item_price']
     ], NULL, "A$rowIndex");
+
+    if ($rowIndex % 100 == 0) {
+        flush(); // Prevent memory overload in large datasets
+    }
+    
     $rowIndex++;
 }
 
 // Write to output
 $writer = new Xlsx($spreadsheet);
 $writer->save("php://output");
+
 exit;
 ?>
