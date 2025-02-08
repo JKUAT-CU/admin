@@ -29,6 +29,7 @@ use PhpOffice\PhpSpreadsheet\Writer\Xlsx\Table;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx\Theme;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx\Workbook;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx\Worksheet;
+Use PhpOffice\PhpSpreadsheet\Writer\BaseWriter;
 use ZipArchive;
 use ZipStream\Exception\OverflowException;
 use ZipStream\ZipStream;
