@@ -15,14 +15,22 @@ header('Cache-Control: max-age=0');
 function fetch_budget_data($mysqli) {
     $query = "
         SELECT 
-            b.id AS budget_id, d.name AS department_name, b.semester, b.grand_total, 
-            COALESCE(f.approved_total, 0) AS finance_approved_total,
-            COALESCE(a.name, 'N/A') AS asset_name, COALESCE(a.quantity, 0) AS asset_quantity, COALESCE(a.price, 0) AS asset_price, 
-            COALESCE(e.name, 'N/A') AS event_name, COALESCE(e.attendance, 0) AS attendance, 
-            COALESCE(ei.name, 'N/A') AS event_item_name, COALESCE(ei.quantity, 0) AS event_item_quantity, COALESCE(ei.price, 0) AS event_item_price
+            b.id AS budget_id, 
+            d.name AS department_name, 
+            b.semester, 
+            b.grand_total, 
+            COALESCE(fb.grand_total, 0) AS finance_approved_total,
+            COALESCE(a.name, 'N/A') AS asset_name, 
+            COALESCE(a.quantity, 0) AS asset_quantity, 
+            COALESCE(a.price, 0) AS asset_price, 
+            COALESCE(e.name, 'N/A') AS event_name, 
+            COALESCE(e.attendance, 0) AS attendance, 
+            COALESCE(ei.name, 'N/A') AS event_item_name, 
+            COALESCE(ei.quantity, 0) AS event_item_quantity, 
+            COALESCE(ei.price, 0) AS event_item_price
         FROM budgets b
         JOIN departments d ON b.department_id = d.id
-        LEFT JOIN finance_approvals f ON b.id = f.budget_id
+        LEFT JOIN finance_budgets fb ON b.id = fb.id
         LEFT JOIN assets a ON b.id = a.budget_id
         LEFT JOIN events e ON b.id = e.budget_id
         LEFT JOIN event_items ei ON e.id = ei.event_id
@@ -31,16 +39,17 @@ function fetch_budget_data($mysqli) {
 
     $stmt = $mysqli->prepare($query);
     if (!$stmt) {
-        die(json_encode(['error' => 'Failed to prepare statement']));
+        die(json_encode(['error' => 'Failed to prepare statement: ' . $mysqli->error]));
     }
 
-    $stmt->execute();
-    $result = $stmt->get_result();
+    if (!$stmt->execute()) {
+        die(json_encode(['error' => 'Query execution failed: ' . $stmt->error]));
+    }
 
+    $result = $stmt->get_result();
     return $result->fetch_all(MYSQLI_ASSOC);
 }
 
-$mysqli = require 'db.php'; 
 $budgets = fetch_budget_data($mysqli);
 
 // Create an Excel spreadsheet
@@ -56,10 +65,11 @@ $headers = [
 ];
 $sheet->fromArray([$headers], NULL, 'A1');
 
-// Style Headers (Bold)
+// Style Headers (Bold + Borders)
 $styleArray = [
     'font' => ['bold' => true],
     'borders' => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN]],
+    'alignment' => ['horizontal' => \PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_CENTER]
 ];
 $sheet->getStyle('A1:L1')->applyFromArray($styleArray);
 
@@ -81,8 +91,13 @@ foreach (range('A', 'L') as $col) {
 }
 
 // Write to output
-$writer = new Xlsx($spreadsheet);
-$writer->save("php://output");
+try {
+    $writer = new Xlsx($spreadsheet);
+    $writer->save("php://output");
+} catch (Exception $e) {
+    die(json_encode(['error' => 'Excel generation failed: ' . $e->getMessage()]));
+}
+
 exit;
 
 ?>
