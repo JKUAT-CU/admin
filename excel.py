@@ -1,10 +1,10 @@
 import requests
 import pandas as pd
 
-# Define the API endpoint
-BASE_URL = "https://admin.jkuatcu.org/budgets.php"
+# API Endpoint
+BASE_URL = "https://api.jkuatcu.org/excel.php"
 
-# Define department IDs based on your database
+# Department IDs
 departments = {
     "Admin": 1, "Podcast": 2, "Anzafyt": 3, "Nurturing": 4, "Finance": 5,
     "Ushering": 6, "Sound": 7, "EDIT": 8, "Publicity": 9, "Decor": 10,
@@ -15,68 +15,64 @@ departments = {
     "Library Ministry": 29, "Prayer Committee": 30
 }
 
-# Set the semester
-SEMESTER = "Fall 2023"  # Change if needed
+SEMESTER = "Fall 2023"  # Change as needed
 
-# Initialize lists to store budget, event, and asset data
-all_budgets = []
-events_data = []
-assets_data = []
+# Data Storage
+all_data = []
 
-# Loop through each department and fetch budget data
+# Fetch and Process Data
 for dept_name, dept_id in departments.items():
     params = {"department_id": dept_id, "semester": SEMESTER}
 
     try:
-        response = requests.get(BASE_URL, params=params)
-
+        response = requests.get(BASE_URL, params=params, timeout=10)
         if response.status_code == 200:
             data = response.json()
 
-            # Process budget data
             for budget in data.get("budgets", []):
-                budget["department_name"] = dept_name
-                all_budgets.append(budget)
-
-                # Process events
                 for event in budget.get("events", []):
                     for item in event.get("event_items", []):
-                        events_data.append({
-                            "department_name": dept_name,
-                            "semester": budget["semester"],
-                            "event_name": event.get("name"),
-                            "attendance": event.get("attendance"),
-                            "item_name": item.get("item_name"),
-                            "item_quantity": item.get("item_quantity"),
-                            "item_price": item.get("item_price"),
-                            "item_total_cost": item.get("item_total_cost"),
-                        })
+                        all_data.append([
+                            dept_name, budget["semester"], budget["grand_total"], budget["status"],  # Budget Info
+                            event.get("name"), event.get("attendance"), event.get("total_cost"),  # Event Info
+                            item.get("item_name"), item.get("item_quantity"), item.get("item_price"), item.get("item_total_cost")  # Event Items
+                        ])
 
-                # Process assets
                 for asset in budget.get("assets", []):
-                    assets_data.append({
-                        "department_name": dept_name,
-                        "semester": budget["semester"],
-                        "asset_name": asset.get("name"),
-                        "quantity": asset.get("quantity"),
-                        "price": asset.get("price"),
-                        "total_cost": asset.get("quantity", 0) * asset.get("price", 0),
-                    })
+                    all_data.append([
+                        dept_name, budget["semester"], budget["grand_total"], budget["status"],  # Budget Info
+                        None, None, None,  # Event Info (Empty for Assets)
+                        asset.get("name"), asset.get("quantity"), asset.get("price"), asset.get("total_cost")  # Asset Info
+                    ])
+
+            print(f"✅ Successfully fetched data for {dept_name}")
+
         else:
-            print(f"Error {response.status_code}: Failed to fetch data for {dept_name}")
+            print(f"❌ Error {response.status_code}: Failed to fetch data for {dept_name}")
 
     except Exception as e:
-        print(f"Exception occurred for {dept_name}: {e}")
+        print(f"🚨 Exception for {dept_name}: {e}")
 
-# Convert lists to DataFrames
-budgets_df = pd.DataFrame(all_budgets)
-events_df = pd.DataFrame(events_data)
-assets_df = pd.DataFrame(assets_data)
+# Convert to DataFrame
+columns = [
+    "Department", "Semester", "Budget Total", "Budget Status",
+    "Event Name", "Attendance", "Event Total Cost",
+    "Item/Asset Name", "Quantity", "Price", "Total Cost"
+]
+df = pd.DataFrame(all_data, columns=columns)
 
-# Export to an Excel file with well-defined tables
-with pd.ExcelWriter("budgets.xlsx", engine="xlsxwriter") as writer:
-    budgets_df.to_excel(writer, sheet_name="Budgets", index=False)
-    events_df.to_excel(writer, sheet_name="Events", index=False)
-    assets_df.to_excel(writer, sheet_name="Assets", index=False)
+# Check if DataFrame is empty before exporting
+if df.empty:
+    print("⚠️ No data retrieved. Excel file not created.")
+else:
+    # Write to Excel (Single Sheet, Multiple Tables)
+    with pd.ExcelWriter("budgets.xlsx", engine="xlsxwriter") as writer:
+        df.to_excel(writer, sheet_name="Budget Overview", index=False)
 
-print("✅ Budget data successfully exported to 'budgets.xlsx'")
+        # Formatting
+        workbook = writer.book
+        worksheet = writer.sheets["Budget Overview"]
+        format_bold = workbook.add_format({"bold": True, "bg_color": "#D3D3D3"})
+        worksheet.set_row(0, None, format_bold)
+
+    print("📂 Data successfully exported to 'budgets.xlsx'")
