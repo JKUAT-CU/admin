@@ -1,54 +1,156 @@
 <?php
 header('Content-Type: application/json');
 
-require 'db.php';
 
-// Fetch budget data from the database
-function fetch_budget_data($mysqli) {
+// Database connection
+$mysqli = require_once 'db.php';
+
+// Fetch budgets by department_id only
+function fetchBudgetsByDepartment($departmentId, $conn) {
     $query = "
-        SELECT 
-            b.id AS budget_id, 
-            d.name AS department_name, 
-            b.semester, 
-            b.grand_total, 
-            COALESCE(fb.grand_total, 0) AS finance_approved_total,
-            COALESCE(a.name, 'N/A') AS asset_name, 
-            COALESCE(a.quantity, 0) AS asset_quantity, 
-            COALESCE(a.price, 0) AS asset_price, 
-            COALESCE(e.name, 'N/A') AS event_name, 
-            COALESCE(e.attendance, 0) AS attendance, 
-            COALESCE(ei.name, 'N/A') AS event_item_name, 
-            COALESCE(ei.quantity, 0) AS event_item_quantity, 
-            COALESCE(ei.price, 0) AS event_item_price
-        FROM budgets b
-        JOIN departments d ON b.department_id = d.id
-        LEFT JOIN finance_budgets fb ON b.id = fb.id
-        LEFT JOIN assets a ON b.id = a.budget_id
-        LEFT JOIN events e ON b.id = e.budget_id
-        LEFT JOIN event_items ei ON e.id = ei.event_id
-        ORDER BY b.semester ASC, b.created_at DESC;
+        WITH LatestBudgets AS (
+            SELECT 
+                id AS budget_id, 
+                semester, 
+                grand_total, 
+                created_at, 
+                status,
+                department_id
+            FROM 
+                budgets
+            WHERE 
+                department_id = ?
+            AND created_at = (
+                SELECT MAX(created_at)
+                FROM budgets AS b2
+                WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+            )
+        )
+        SELECT * FROM LatestBudgets
+        ORDER BY created_at DESC
     ";
 
-    $stmt = $mysqli->prepare($query);
+    $stmt = $conn->prepare($query);
     if (!$stmt) {
         http_response_code(500);
-        echo json_encode(['error' => 'Failed to prepare statement: ' . $mysqli->error]);
+        echo json_encode(['error' => 'Failed to prepare query']);
         exit;
     }
 
-    if (!$stmt->execute()) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Query execution failed: ' . $stmt->error]);
-        exit;
-    }
-
+    $stmt->bind_param('i', $departmentId);
+    $stmt->execute();
     $result = $stmt->get_result();
-    $data = $result->fetch_all(MYSQLI_ASSOC);
 
-    echo json_encode($data);
-    exit;
+    $budgets = [];
+    while ($row = $result->fetch_assoc()) {
+        $budgets[] = $row;
+    }
+
+    echo json_encode(['budgets' => $budgets]);
 }
 
-// Execute function and return JSON
-fetch_budget_data($mysqli);
+function fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $conn) {
+    $query = "
+WITH LatestBudgets AS (
+    SELECT 
+        id AS budget_id, 
+        semester, 
+        grand_total, 
+        created_at, 
+        status,
+        department_id
+    FROM 
+        budgets
+    WHERE 
+        department_id = ? AND semester = ?
+    AND created_at = (
+        SELECT MAX(created_at)
+        FROM budgets AS b2
+        WHERE b2.semester = budgets.semester AND b2.department_id = budgets.department_id
+    )
+)
+SELECT 
+    lb.budget_id, 
+    lb.semester, 
+    lb.grand_total, 
+    lb.created_at, 
+    lb.status, 
+    lb.department_id,
+    d.name AS department_name,
+    JSON_ARRAYAGG(
+        JSON_OBJECT(
+            'name', a.name, 
+            'quantity', a.quantity, 
+            'price', a.price
+        )
+    ) AS assets,
+    JSON_ARRAYAGG(
+        JSON_OBJECT(
+            'name', e.name, 
+            'attendance', e.attendance, 
+            'total_cost', IFNULL(e.total_cost, 0),
+            'event_items', (
+                SELECT JSON_ARRAYAGG(
+                    JSON_OBJECT(
+                        'item_name', ei.name,
+                        'item_quantity', ei.quantity,
+                        'item_price', ei.price,
+                        'item_total_cost', IFNULL(ei.total_cost, 0)
+                    )
+                )
+                FROM event_items ei
+                WHERE ei.event_id = e.id
+            )
+        )
+    ) AS events
+FROM 
+    LatestBudgets lb
+JOIN departments d ON lb.department_id = d.id
+LEFT JOIN assets a ON a.budget_id = lb.budget_id
+LEFT JOIN events e ON e.budget_id = lb.budget_id
+GROUP BY 
+    lb.budget_id, lb.semester, lb.grand_total, lb.created_at, lb.status, lb.department_id, d.name
+ORDER BY 
+    lb.created_at DESC;
+
+    ";
+
+    $stmt = $conn->prepare($query);
+    if (!$stmt) {
+        http_response_code(500);
+        echo json_encode(['error' => 'Failed to prepare query']);
+        exit;
+    }
+
+    $stmt->bind_param('is', $departmentId, $semester);
+    $stmt->execute();
+    $result = $stmt->get_result();
+
+    $budgets = [];
+    while ($row = $result->fetch_assoc()) {
+        $row['assets'] = json_decode($row['assets'], true);
+        $row['events'] = json_decode($row['events'], true);
+        $budgets[] = $row;
+    }
+
+    echo json_encode(['budgets' => $budgets]);
+}
+
+// Route handling
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (isset($_GET['department_id']) && isset($_GET['semester'])) {
+        $departmentId = intval($_GET['department_id']);
+        $semester = $_GET['semester'];
+        fetchBudgetsByDepartmentAndSemester($departmentId, $semester, $mysqli);
+    } elseif (isset($_GET['department_id'])) {
+        $departmentId = intval($_GET['department_id']);
+        fetchBudgetsByDepartment($departmentId, $mysqli);
+    } else {
+        http_response_code(400); // Bad Request
+        echo json_encode(['message' => 'Invalid request. department_id is required.']);
+    }
+} else {
+    http_response_code(404); // Not Found
+    echo json_encode(['message' => 'Invalid endpoint or method.']);
+}
 ?>
