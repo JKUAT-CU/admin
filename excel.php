@@ -4,6 +4,7 @@ require 'db.php';
 require 'vendor/autoload.php'; 
 require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Spreadsheet.php';
 require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/Xlsx.php';
+require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/BaseWriter.php';
 
 
 
