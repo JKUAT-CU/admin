@@ -3,8 +3,9 @@
 require 'db.php'; 
 require 'vendor/autoload.php'; 
 
-require "PhpSpreadsheet/Spreadsheet";
-require "PhpSpreadsheet/Writer/Xlsx";
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+
 
 // Set headers for Excel download
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
