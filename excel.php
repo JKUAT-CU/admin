@@ -1,13 +1,10 @@
 <?php
 
 require 'db.php'; 
-require 'vendor/autoload.php'; 
-require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Spreadsheet.php';
-require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/Xlsx.php';
-require 'vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/BaseWriter.php';
+require 'vendor/autoload.php'; // This is enough to load PhpSpreadsheet
 
-
-
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 // Set headers for Excel download
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -102,5 +99,3 @@ try {
 }
 
 exit;
-
-?>
