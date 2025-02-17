@@ -1,78 +1,129 @@
 import requests
-import pandas as pd
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Border, Side, Alignment
+from openpyxl.utils import get_column_letter
+from datetime import datetime
+import logging
 
-# API Endpoint
-BASE_URL = "https://api.jkuatcu.org/excel.php"
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Department IDs
-departments = {
-    "Admin": 1, "Podcast": 2, "Anzafyt": 3, "Nurturing": 4, "Finance": 5,
-    "Ushering": 6, "Sound": 7, "EDIT": 8, "Publicity": 9, "Decor": 10,
-    "Hospitality": 11, "Sports": 12, "Welfare": 13, "JMC": 14, "Sunday School": 15,
-    "Missions": 16, "ET Committee": 17, "HSM": 18, "HCM": 19, "CSR": 20,
-    "BS": 21, "Leadership Training": 22, "VukaFyt": 23, "Associates Committee": 24,
-    "Hatua": 25, "OS Committee": 26, "Music Ministry": 27, "CREAM": 28,
-    "Library Ministry": 29, "Prayer Committee": 30
-}
+# API endpoints
+FINANCE_URL = "https://api.jkuatcu.org/finance"
+FINANCE_DATA_URL = "https://api.jkuatcu.org/financedata"
+HEADERS = {"Origin": "https://admin.jkuatcu.org"}
 
-SEMESTER = "Fall 2023"  # Change as needed
-
-# Data Storage
-all_data = []
-
-# Fetch and Process Data
-for dept_name, dept_id in departments.items():
-    params = {"department_id": dept_id, "semester": SEMESTER}
-
+def fetch_data(url):
+    """Fetch data from the given URL with error handling."""
     try:
-        response = requests.get(BASE_URL, params=params, timeout=10)
-        if response.status_code == 200:
-            data = response.json()
+        response = requests.get(url, headers=HEADERS)
+        response.raise_for_status()
+        return response.json() or {}
+    except requests.RequestException as e:
+        logging.error(f"Error fetching data from {url}: {e}")
+        return {}
 
-            for budget in data.get("budgets", []):
-                for event in budget.get("events", []):
-                    for item in event.get("event_items", []):
-                        all_data.append([
-                            dept_name, budget["semester"], budget["grand_total"], budget["status"],  # Budget Info
-                            event.get("name"), event.get("attendance"), event.get("total_cost"),  # Event Info
-                            item.get("item_name"), item.get("item_quantity"), item.get("item_price"), item.get("item_total_cost")  # Event Items
-                        ])
+def safe_float(value, default=0.0):
+    """Safely convert a value to float, returning a default if conversion fails."""
+    try:
+        return float(value) if value is not None else default
+    except (ValueError, TypeError):
+        return default
 
-                for asset in budget.get("assets", []):
-                    all_data.append([
-                        dept_name, budget["semester"], budget["grand_total"], budget["status"],  # Budget Info
-                        None, None, None,  # Event Info (Empty for Assets)
-                        asset.get("name"), asset.get("quantity"), asset.get("price"), asset.get("total_cost")  # Asset Info
-                    ])
+def get_approved_budget(department_id, semester, approved_data):
+    """Get the approved budget for a department and semester."""
+    for budget in approved_data.get('budgets', []) or []:
+        if str(budget.get('department_id', '')) == str(department_id) and budget.get('semester') == semester:
+            return budget
+    return {}
 
-            print(f"✅ Successfully fetched data for {dept_name}")
+def generate_excel(budgets, approved_data):
+    """Generate an Excel file with grouped budget data including assets and approved columns."""
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Budget Data"
 
-        else:
-            print(f"❌ Error {response.status_code}: Failed to fetch data for {dept_name}")
+    header_fill = PatternFill(start_color="4F46E5", end_color="4F46E5", fill_type="solid")
+    thick_border = Border(left=Side(style='thick'), right=Side(style='thick'), top=Side(style='thick'), bottom=Side(style='thick'))
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    row = 1
+    for semester in sorted(set(b.get('semester', 'N/A') for b in budgets)):
+        ws.cell(row=row, column=1, value=f"Semester: {semester}").font = Font(bold=True)
+        row += 2
 
-    except Exception as e:
-        print(f"🚨 Exception for {dept_name}: {e}")
+        for budget in sorted((b for b in budgets if b.get('semester', 'N/A') == semester), key=lambda x: x.get('department_name', '')):
+            department_name = str(budget.get('department_name', 'N/A'))
+            department_id = budget.get('department_id')
+            ws.cell(row=row, column=2, value=f"Department: {department_name}").font = Font(bold=True)
+            row += 2
 
-# Convert to DataFrame
-columns = [
-    "Department", "Semester", "Budget Total", "Budget Status",
-    "Event Name", "Attendance", "Event Total Cost",
-    "Item/Asset Name", "Quantity", "Price", "Total Cost"
-]
-df = pd.DataFrame(all_data, columns=columns)
+            approved_budget = get_approved_budget(department_id, semester, approved_data)
+            
+            for event in budget.get('events', []) or []:
+                ws.cell(row=row, column=2, value=f"Event: {event.get('name', 'N/A')}").font = Font(bold=True)
+                row += 1
+                ws.cell(row=row, column=2, value=f"Attendance: {event.get('attendance', 'N/A')}")
+                row += 1
+                
+                headers = ["Item", "Price", "Quantity", "Total", "Approved"]
+                for col, header in enumerate(headers, start=2):
+                    cell = ws.cell(row=row, column=col, value=header)
+                    cell.font = Font(bold=True)
+                    cell.fill = header_fill
+                    cell.border = thick_border
+                row += 1
+                
+                for item in event.get('items', []) or []:
+                    quantity = safe_float(item.get('quantity', 0))
+                    price = safe_float(item.get('price', 0))
+                    total = quantity * price
+                    
+                    ws.cell(row=row, column=2, value=item.get('name', 'N/A')).border = border
+                    ws.cell(row=row, column=3, value=price).border = border
+                    ws.cell(row=row, column=4, value=quantity).border = border
+                    ws.cell(row=row, column=5, value=total).border = border
+                    
+                    approved_item = next(
+                        (a for e in (approved_budget.get('events') or []) if isinstance(e, dict)
+                         for a in (e.get('items') or []) if isinstance(a, dict) and a.get('name') == item.get('name')),
+                        None
+                    )
+                    approved_total = safe_float(approved_item.get('quantity', 0)) * safe_float(approved_item.get('price', 0)) if approved_item else 0
+                    ws.cell(row=row, column=6, value=approved_total).border = border
+                    row += 1
+                row += 1
+            
+            ws.cell(row=row, column=2, value="Assets").font = Font(bold=True)
+            row += 1
+            
+            for asset in budget.get('assets', []) or []:
+                quantity = safe_float(asset.get('quantity', 0))
+                price = safe_float(asset.get('price', 0))
+                total = quantity * price
+                
+                ws.cell(row=row, column=2, value=asset.get('name', 'N/A')).border = border
+                ws.cell(row=row, column=3, value=price).border = border
+                ws.cell(row=row, column=4, value=quantity).border = border
+                ws.cell(row=row, column=5, value=total).border = border
+                
+                approved_asset = next((a for a in (approved_budget.get('assets') or []) if isinstance(a, dict) and a.get('name') == asset.get('name')), None)
+                approved_total = safe_float(approved_asset.get('quantity', 0)) * safe_float(approved_asset.get('price', 0)) if approved_asset else 0
+                ws.cell(row=row, column=6, value=approved_total).border = border
+                row += 1
+            row += 2  
+    
+    filename = f"detailed_budget_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    wb.save(filename)
+    logging.info(f"Excel file '{filename}' has been created successfully.")
 
-# Check if DataFrame is empty before exporting
-if df.empty:
-    print("⚠️ No data retrieved. Excel file not created.")
-else:
-    # Write to Excel (Single Sheet, Multiple Tables)
-    with pd.ExcelWriter("budgets.xlsx", engine="xlsxwriter") as writer:
-        df.to_excel(writer, sheet_name="Budget Overview", index=False)
+def main():
+    logging.info("Fetching budget data...")
+    budgets_data = fetch_data(FINANCE_URL)
+    logging.info("Fetching approved budget data...")
+    approved_data = fetch_data(FINANCE_DATA_URL)
+    logging.info("Generating Excel file...")
+    generate_excel(budgets_data.get('budgets', []), approved_data)
 
-        # Formatting
-        workbook = writer.book
-        worksheet = writer.sheets["Budget Overview"]
-        format_bold = workbook.add_format({"bold": True, "bg_color": "#D3D3D3"})
-        worksheet.set_row(0, None, format_bold)
-
-    print("📂 Data successfully exported to 'budgets.xlsx'")
+if __name__ == "__main__":
+    main()

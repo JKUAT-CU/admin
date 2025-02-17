@@ -34,7 +34,7 @@ $accountMapping = [
     'MS10' => 'Ushering',
     'AS1' => 'Associates', 'CH1' => 'Challenges', 'PUBLICITY SALES' => 'Sales',
     'PUBLICITY CW' => 'Car Wash', 'CM1' => 'Committee Members', 'EC1' => 'Executive Committee',
-    'WW1' => 'Well Wishers', 'PUBLICITY' => 'Main Account'
+    'AS' => 'Associates', 'WW1' => 'Well Wishers', 'PUBLICITY' => 'Main Account'
 ];
 
 // Create a case-insensitive mapping by converting keys to uppercase
